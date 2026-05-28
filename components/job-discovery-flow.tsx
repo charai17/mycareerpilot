@@ -22,7 +22,7 @@ const defaultSearch: SearchState = {
   priorities: "SaaS, stable team, growth path, strong work-life balance"
 };
 
-const steps = ["Search profile", "Preferences", "Review"];
+const steps = ["Search brief", "Preferences", "Review"];
 
 export function JobDiscoveryFlow() {
   const [step, setStep] = useState(0);
@@ -153,7 +153,7 @@ export function JobDiscoveryFlow() {
             <Pill icon={Check} label={form.seniority} />
           </div>
           <p className="mt-4 text-sm leading-6 text-muted">
-            This will become the saved-search profile once backend search is wired.
+            This will become the saved job-search brief once backend search is wired.
           </p>
         </article>
 
