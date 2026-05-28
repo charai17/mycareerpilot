@@ -4,8 +4,10 @@ import { useMemo, useState } from "react";
 import {
   ArrowRight,
   BriefcaseBusiness,
+  CheckCircle2,
   CircleDollarSign,
   Clock3,
+  CreditCard,
   Database,
   FileSearch,
   FileText,
@@ -80,8 +82,8 @@ export function AppShell() {
 
         <section className="mt-6 rounded-lg border border-line bg-white p-3 lg:mt-auto">
           <p className="text-xs font-semibold uppercase text-muted">Plan</p>
-          <strong className="mt-1 block text-sm">Pro trial</strong>
-          <p className="mt-1 text-xs leading-5 text-muted">Next job scan in 4 days</p>
+          <strong className="mt-1 block text-sm">Premium preview</strong>
+          <p className="mt-1 text-xs leading-5 text-muted">Daily market checks on the GBP 10 plan</p>
         </section>
       </aside>
 
@@ -91,6 +93,7 @@ export function AppShell() {
         {activeView === "jobs" && <JobsView />}
         {activeView === "cv" && <CvView />}
         {activeView === "tracker" && <TrackerPanel />}
+        {activeView === "plans" && <PlansView />}
       </main>
     </div>
   );
@@ -189,6 +192,13 @@ const services: Array<{
     view: "tracker",
     icon: ShieldCheck,
     label: "Open tracker"
+  },
+  {
+    title: "Plans",
+    detail: "Choose the normal plan or upgrade for daily market checks and tailored CVs.",
+    view: "plans",
+    icon: CreditCard,
+    label: "View plans"
   }
 ];
 
@@ -276,6 +286,114 @@ function TrackerPanel() {
 
       <ApplicationTracker />
     </section>
+  );
+}
+
+function PlansView() {
+  return (
+    <section aria-labelledby="plans-title" className="mx-auto max-w-6xl">
+      <SectionHeading eyebrow="Billing" title="Choose a plan">
+        <Button>Connect Stripe next</Button>
+      </SectionHeading>
+
+      <div className="grid gap-4 lg:grid-cols-[0.95fr_1.05fr]">
+        <PlanCard
+          name="CareerPilot"
+          price="GBP 6"
+          cadence="per month"
+          description="For users who want one calm place to search jobs, build a CV, save roles, and track applications."
+          cta="Start normal plan"
+          features={[
+            "Job search across connected sources",
+            "Master CV builder and PDF download",
+            "Save jobs to the tracker",
+            "CV-aware job matching",
+            "Manual apply links"
+          ]}
+        />
+        <PlanCard
+          name="CareerPilot Premium"
+          price="GBP 10"
+          cadence="per month"
+          description="For users who want CareerPilot to keep watching the market and prepare stronger job-specific CVs."
+          cta="Start premium plan"
+          featured
+          features={[
+            "Everything in the normal plan",
+            "Daily market checks for new jobs",
+            "Tailored CVs for selected roles",
+            "Priority recommended jobs",
+            "Better fit explanations from the user's CV"
+          ]}
+        />
+      </div>
+
+      <section className="mt-5 rounded-2xl border border-line bg-white p-5 shadow-quiet">
+        <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+          <div>
+            <p className="text-sm font-semibold text-muted">Add-on later</p>
+            <h3 className="mt-1 text-2xl font-semibold tracking-normal">Extra tailored CV credits</h3>
+            <p className="mt-2 max-w-3xl text-sm leading-6 text-muted">
+              If a normal-plan user wants a job-specific CV, they can buy extra credits without upgrading. This becomes the one-off checkout after subscriptions are connected.
+            </p>
+          </div>
+          <span className="inline-flex min-h-10 shrink-0 items-center justify-center rounded-lg bg-[#fafaf8] px-4 text-sm font-bold text-ink">
+            Paid add-on
+          </span>
+        </div>
+      </section>
+    </section>
+  );
+}
+
+function PlanCard({
+  name,
+  price,
+  cadence,
+  description,
+  features,
+  cta,
+  featured = false
+}: {
+  name: string;
+  price: string;
+  cadence: string;
+  description: string;
+  features: string[];
+  cta: string;
+  featured?: boolean;
+}) {
+  return (
+    <article className={`rounded-2xl border p-5 shadow-quiet ${featured ? "border-ink bg-[#1f1f1f] text-white" : "border-line bg-white"}`}>
+      <div className="flex items-start justify-between gap-4">
+        <div>
+          <h3 className="text-xl font-semibold tracking-normal">{name}</h3>
+          <p className={`mt-2 text-sm leading-6 ${featured ? "text-[#d7d7d2]" : "text-muted"}`}>{description}</p>
+        </div>
+        {featured && <span className="rounded-full bg-white px-3 py-1 text-xs font-black text-ink">Best value</span>}
+      </div>
+      <div className="mt-6 flex items-end gap-2">
+        <strong className="text-5xl font-semibold leading-none tracking-normal">{price}</strong>
+        <span className={`pb-1 text-sm font-bold ${featured ? "text-[#d7d7d2]" : "text-muted"}`}>{cadence}</span>
+      </div>
+      <ul className="mt-6 grid gap-3">
+        {features.map((feature) => (
+          <li key={feature} className={`flex gap-2 text-sm font-semibold ${featured ? "text-white" : "text-ink"}`}>
+            <CheckCircle2 className={`mt-0.5 h-4 w-4 shrink-0 ${featured ? "text-[#b8d8d3]" : "text-pilot-green"}`} aria-hidden="true" />
+            <span>{feature}</span>
+          </li>
+        ))}
+      </ul>
+      <button
+        type="button"
+        className={`mt-7 inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-lg px-4 text-sm font-bold transition ${
+          featured ? "bg-white text-ink hover:bg-[#f1f1ec]" : "bg-ink text-white hover:bg-[#353535]"
+        }`}
+      >
+        {cta}
+        <ArrowRight className="h-4 w-4" aria-hidden="true" />
+      </button>
+    </article>
   );
 }
 
