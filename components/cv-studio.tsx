@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import type { User } from "@supabase/supabase-js";
-import { FileText, RefreshCw, Save, Sparkles } from "lucide-react";
+import { ClipboardEdit, FileText, RefreshCw, Save, Sparkles, Upload } from "lucide-react";
 import { supabase } from "@/lib/supabase/client";
 import type { Json } from "@/lib/database.types";
 
@@ -44,6 +44,7 @@ export function CvStudio() {
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [starter, setStarter] = useState<"profile" | "scratch" | "paste">("profile");
 
   const previewLines = useMemo(
     () => [
@@ -216,103 +217,182 @@ export function CvStudio() {
   }
 
   return (
-    <div className="grid gap-5 xl:grid-cols-[0.95fr_1.05fr]">
-      <section className="rounded-lg border border-line bg-white p-5 shadow-quiet">
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-          <div>
-            <h3 className="text-lg font-bold">Master CV</h3>
-            <p className="mt-1 text-sm leading-6 text-muted">Create the core CV that job-specific versions will use.</p>
-          </div>
-          <button
-            type="button"
-            onClick={buildFromProfile}
-            className="inline-flex min-h-10 items-center justify-center gap-2 rounded-lg border border-line bg-white px-3 text-sm font-bold transition hover:border-pilot-green"
-          >
-            <Sparkles className="h-4 w-4" aria-hidden="true" />
-            Use profile
-          </button>
+    <div className="grid gap-5">
+      <section className="rounded-2xl border border-line bg-white p-5">
+        <div>
+          <p className="text-sm font-semibold text-muted">Service setup</p>
+          <h3 className="mt-1 text-2xl font-semibold tracking-normal">Professional CV Studio</h3>
+          <p className="mt-2 max-w-2xl text-sm leading-6 text-muted">
+            Choose how to start, then refine and save the master CV used for job matching and tailored applications.
+          </p>
         </div>
 
-        <div className="mt-5 grid gap-4">
-          <Field label="CV title" value={form.title} onChange={(value) => updateField("title", value)} />
-          <TextArea label="Professional summary" value={form.summary} onChange={(value) => updateField("summary", value)} />
-          <TextArea label="Experience" value={form.experience} rows={8} onChange={(value) => updateField("experience", value)} />
-          <TextArea label="Skills" value={form.skills} onChange={(value) => updateField("skills", value)} />
-          <TextArea label="Education" value={form.education} onChange={(value) => updateField("education", value)} />
-        </div>
-
-        <div className="mt-5 flex flex-col gap-3 sm:flex-row sm:items-center">
-          <button
-            type="button"
-            onClick={saveCv}
-            disabled={saving}
-            className="inline-flex min-h-11 items-center justify-center gap-2 rounded-lg bg-ink px-4 font-bold text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-60"
-          >
-            <Save className="h-4 w-4" aria-hidden="true" />
-            {saving ? "Saving" : "Save CV"}
-          </button>
-          {!user && <p className="text-sm font-bold text-muted">Sign in with Google to save CVs.</p>}
-          {message && <p className="text-sm font-bold text-pilot-green">{message}</p>}
-          {error && <p className="text-sm font-bold text-pilot-red">{error}</p>}
+        <div className="mt-5 grid gap-3 md:grid-cols-3">
+          <StarterCard
+            active={starter === "profile"}
+            icon={Sparkles}
+            title="Build from profile"
+            detail="Use saved career details to prepare the first draft."
+            onClick={() => {
+              setStarter("profile");
+              buildFromProfile();
+            }}
+          />
+          <StarterCard
+            active={starter === "scratch"}
+            icon={ClipboardEdit}
+            title="Build from scratch"
+            detail="Start with a clean professional CV structure."
+            onClick={() => {
+              setStarter("scratch");
+              setSelectedCvId(null);
+              setForm(defaultCv);
+              setMessage("Clean CV structure loaded.");
+              setError(null);
+            }}
+          />
+          <StarterCard
+            active={starter === "paste"}
+            icon={Upload}
+            title="Improve existing CV"
+            detail="Paste an existing CV into the editor and refine it."
+            onClick={() => {
+              setStarter("paste");
+              setMessage("Paste your existing CV into the sections below.");
+              setError(null);
+            }}
+          />
         </div>
       </section>
 
-      <section className="grid gap-5">
-        <article className="rounded-lg border border-line bg-white p-6 shadow-quiet">
-          <div className="flex items-center justify-between gap-3">
-            <h3 className="text-lg font-bold">Preview</h3>
-            <span className="rounded-full bg-pilot-greenSoft px-3 py-1 text-xs font-black text-pilot-green">
-              ATS-friendly
-            </span>
-          </div>
-          <div className="mt-5 grid gap-4">
-            <h4 className="text-2xl font-bold">{form.title}</h4>
-            {previewLines.map((line, index) => (
-              <p key={`${line}-${index}`} className="whitespace-pre-line rounded-lg bg-slate-50 p-4 text-sm leading-6 text-slate-700">
-                {line}
-              </p>
-            ))}
-          </div>
-        </article>
-
-        <article className="rounded-lg border border-line bg-white p-5 shadow-quiet">
-          <div className="mb-4 flex items-center justify-between gap-3">
-            <h3 className="text-lg font-bold">Saved CVs</h3>
+      <div className="grid gap-5 xl:grid-cols-[0.95fr_1.05fr]">
+        <section className="rounded-lg border border-line bg-white p-5 shadow-quiet">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+            <div>
+              <h3 className="text-lg font-bold">Master CV</h3>
+              <p className="mt-1 text-sm leading-6 text-muted">Create the core CV that job-specific versions will use.</p>
+            </div>
             <button
               type="button"
-              onClick={() => user && loadCvs(user.id)}
-              className="grid h-10 w-10 place-items-center rounded-lg border border-line text-muted transition hover:border-pilot-green hover:text-pilot-green"
-              aria-label="Refresh saved CVs"
+              onClick={buildFromProfile}
+              className="inline-flex min-h-10 items-center justify-center gap-2 rounded-lg border border-line bg-white px-3 text-sm font-bold transition hover:border-pilot-green"
             >
-              <RefreshCw className="h-4 w-4" aria-hidden="true" />
+              <Sparkles className="h-4 w-4" aria-hidden="true" />
+              Use profile
             </button>
           </div>
 
-          {cvs.length === 0 ? (
-            <div className="rounded-lg bg-slate-50 p-4 text-sm font-bold text-muted">No saved CVs yet.</div>
-          ) : (
-            <div className="grid gap-3">
-              {cvs.map((cv) => (
-                <button
-                  key={cv.id}
-                  type="button"
-                  onClick={() => loadIntoForm(cv)}
-                  className={`flex min-h-16 items-center justify-between gap-3 rounded-lg border px-4 text-left transition ${
-                    selectedCvId === cv.id ? "border-pilot-green bg-pilot-greenSoft" : "border-line bg-white hover:border-pilot-green"
-                  }`}
-                >
-                  <span>
-                    <strong className="block">{cv.title}</strong>
-                    <span className="text-sm text-muted">Updated {new Date(cv.updated_at).toLocaleDateString()}</span>
-                  </span>
-                  <FileText className="h-4 w-4 text-pilot-green" aria-hidden="true" />
-                </button>
+          <div className="mt-5 grid gap-4">
+            <Field label="CV title" value={form.title} onChange={(value) => updateField("title", value)} />
+            <TextArea label="Professional summary" value={form.summary} onChange={(value) => updateField("summary", value)} />
+            <TextArea label="Experience" value={form.experience} rows={8} onChange={(value) => updateField("experience", value)} />
+            <TextArea label="Skills" value={form.skills} onChange={(value) => updateField("skills", value)} />
+            <TextArea label="Education" value={form.education} onChange={(value) => updateField("education", value)} />
+          </div>
+
+          <div className="mt-5 flex flex-col gap-3 sm:flex-row sm:items-center">
+            <button
+              type="button"
+              onClick={saveCv}
+              disabled={saving}
+              className="inline-flex min-h-11 items-center justify-center gap-2 rounded-lg bg-ink px-4 font-bold text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              <Save className="h-4 w-4" aria-hidden="true" />
+              {saving ? "Saving" : "Save CV"}
+            </button>
+            {!user && <p className="text-sm font-bold text-muted">Sign in with Google to save CVs.</p>}
+            {message && <p className="text-sm font-bold text-pilot-green">{message}</p>}
+            {error && <p className="text-sm font-bold text-pilot-red">{error}</p>}
+          </div>
+        </section>
+
+        <section className="grid gap-5">
+          <article className="rounded-lg border border-line bg-white p-6 shadow-quiet">
+            <div className="flex items-center justify-between gap-3">
+              <h3 className="text-lg font-bold">Preview</h3>
+              <span className="rounded-full bg-pilot-greenSoft px-3 py-1 text-xs font-black text-pilot-green">
+                ATS-friendly
+              </span>
+            </div>
+            <div className="mt-5 grid gap-4">
+              <h4 className="text-2xl font-bold">{form.title}</h4>
+              {previewLines.map((line, index) => (
+                <p key={`${line}-${index}`} className="whitespace-pre-line rounded-lg bg-slate-50 p-4 text-sm leading-6 text-slate-700">
+                  {line}
+                </p>
               ))}
             </div>
-          )}
-        </article>
-      </section>
+          </article>
+
+          <article className="rounded-lg border border-line bg-white p-5 shadow-quiet">
+            <div className="mb-4 flex items-center justify-between gap-3">
+              <h3 className="text-lg font-bold">Saved CVs</h3>
+              <button
+                type="button"
+                onClick={() => user && loadCvs(user.id)}
+                className="grid h-10 w-10 place-items-center rounded-lg border border-line text-muted transition hover:border-pilot-green hover:text-pilot-green"
+                aria-label="Refresh saved CVs"
+              >
+                <RefreshCw className="h-4 w-4" aria-hidden="true" />
+              </button>
+            </div>
+
+            {cvs.length === 0 ? (
+              <div className="rounded-lg bg-slate-50 p-4 text-sm font-bold text-muted">No saved CVs yet.</div>
+            ) : (
+              <div className="grid gap-3">
+                {cvs.map((cv) => (
+                  <button
+                    key={cv.id}
+                    type="button"
+                    onClick={() => loadIntoForm(cv)}
+                    className={`flex min-h-16 items-center justify-between gap-3 rounded-lg border px-4 text-left transition ${
+                      selectedCvId === cv.id ? "border-pilot-green bg-pilot-greenSoft" : "border-line bg-white hover:border-pilot-green"
+                    }`}
+                  >
+                    <span>
+                      <strong className="block">{cv.title}</strong>
+                      <span className="text-sm text-muted">Updated {new Date(cv.updated_at).toLocaleDateString()}</span>
+                    </span>
+                    <FileText className="h-4 w-4 text-pilot-green" aria-hidden="true" />
+                  </button>
+                ))}
+              </div>
+            )}
+          </article>
+        </section>
+      </div>
     </div>
+  );
+}
+
+function StarterCard({
+  active,
+  icon: Icon,
+  title,
+  detail,
+  onClick
+}: {
+  active: boolean;
+  icon: typeof Sparkles;
+  title: string;
+  detail: string;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={`rounded-2xl border p-4 text-left transition ${
+        active ? "border-ink bg-[#fafaf8]" : "border-line bg-white hover:border-[#cfcfca]"
+      }`}
+    >
+      <span className={`grid h-10 w-10 place-items-center rounded-xl ${active ? "bg-ink text-white" : "bg-[#f3f3ef] text-ink"}`}>
+        <Icon className="h-5 w-5" aria-hidden="true" />
+      </span>
+      <span className="mt-4 block font-semibold">{title}</span>
+      <span className="mt-2 block text-sm leading-6 text-muted">{detail}</span>
+    </button>
   );
 }
 
