@@ -5,20 +5,20 @@ const config: Config = {
   theme: {
     extend: {
       colors: {
-        ink: "#20211f",
-        canvas: "#f7f5f0",
-        line: "#dfdcd4",
-        muted: "#6f706a",
+        ink: "#1f1f1f",
+        canvas: "#fbfbfa",
+        line: "#e8e8e3",
+        muted: "#73736d",
         pilot: {
-          green: "#1f7a72",
-          greenSoft: "#e4f2ef",
-          blue: "#365b8c",
-          gold: "#9a6b2f",
+          green: "#208579",
+          greenSoft: "#eaf5f3",
+          blue: "#3f618a",
+          gold: "#8c6a37",
           red: "#a6423a"
         }
       },
       boxShadow: {
-        quiet: "0 18px 60px rgba(45, 43, 36, 0.09)"
+        quiet: "0 22px 70px rgba(31, 31, 31, 0.07)"
       }
     }
   },
