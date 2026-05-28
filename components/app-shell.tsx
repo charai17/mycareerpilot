@@ -2,7 +2,6 @@
 
 import { useMemo, useState } from "react";
 import {
-  ArrowRight,
   Check,
   CircleDollarSign,
   Clock3,
@@ -12,7 +11,6 @@ import {
   Globe2,
   KeyRound,
   LockKeyhole,
-  Plus,
   Search,
   SendHorizontal,
   SlidersHorizontal,
@@ -47,15 +45,15 @@ export function AppShell() {
   );
 
   return (
-    <div className="min-h-screen bg-canvas text-ink lg:grid lg:grid-cols-[244px_minmax(0,1fr)]">
-      <aside className="border-line/80 bg-[#fbfaf7]/90 p-4 shadow-sm backdrop-blur lg:sticky lg:top-0 lg:flex lg:h-screen lg:flex-col lg:border-r lg:p-4">
-        <div className="flex items-center justify-between gap-4">
+    <div className="min-h-screen bg-canvas text-ink lg:grid lg:grid-cols-[220px_minmax(0,1fr)]">
+      <aside className="border-line bg-[#f7f7f4] p-3 lg:sticky lg:top-0 lg:flex lg:h-screen lg:flex-col lg:border-r">
+        <div className="flex items-center justify-between gap-3 px-1">
           <button
-            className="inline-flex items-center gap-3 rounded-xl px-2 py-1.5 text-left font-bold transition hover:bg-white"
+            className="inline-flex items-center gap-2 rounded-lg px-2 py-1.5 text-left text-sm font-semibold transition hover:bg-white"
             type="button"
             onClick={() => setActiveView("dashboard")}
           >
-            <span className="grid h-8 w-8 place-items-center rounded-lg bg-pilot-green text-white">m</span>
+            <span className="grid h-7 w-7 place-items-center rounded-md bg-ink text-sm text-white">m</span>
             <span>mycareerpilot</span>
           </button>
           <span className="rounded-full border border-line px-3 py-1 text-xs font-bold text-muted lg:hidden">
@@ -63,16 +61,7 @@ export function AppShell() {
           </span>
         </div>
 
-        <button
-          type="button"
-          onClick={() => setActiveView("jobs")}
-          className="mt-6 inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-ink px-3 text-sm font-bold text-white transition hover:bg-[#343632]"
-        >
-          <Plus className="h-4 w-4" aria-hidden="true" />
-          New search
-        </button>
-
-        <nav className="mt-4 grid gap-1 sm:grid-cols-2 lg:grid-cols-1" aria-label="Primary navigation">
+        <nav className="mt-6 grid gap-0.5 sm:grid-cols-2 lg:grid-cols-1" aria-label="Primary navigation">
           {navigation.map((item) => {
             const Icon = item.icon;
             const selected = activeView === item.id;
@@ -82,8 +71,8 @@ export function AppShell() {
                 key={item.id}
                 type="button"
                 onClick={() => setActiveView(item.id)}
-                className={`flex min-h-10 items-center gap-3 rounded-xl px-3 py-2 text-left text-sm font-bold transition ${
-                  selected ? "bg-white text-pilot-green shadow-sm" : "text-[#5f615b] hover:bg-white/75"
+                className={`flex min-h-9 items-center gap-2 rounded-lg px-2.5 py-2 text-left text-sm transition ${
+                  selected ? "bg-white font-semibold text-ink shadow-sm" : "font-medium text-muted hover:bg-white/70"
                 }`}
               >
                 <Icon className="h-4 w-4" aria-hidden="true" />
@@ -93,14 +82,14 @@ export function AppShell() {
           })}
         </nav>
 
-        <section className="mt-6 rounded-xl border border-line/80 bg-white/75 p-4 lg:mt-auto">
-          <p className="text-xs font-bold uppercase text-pilot-green">Workspace</p>
-          <strong className="mt-1 block">Pro trial</strong>
-          <p className="mt-2 text-sm leading-6 text-muted">32 matches and 8 tailored CV drafts remaining.</p>
+        <section className="mt-6 rounded-lg border border-line bg-white p-3 lg:mt-auto">
+          <p className="text-xs font-semibold uppercase text-muted">Plan</p>
+          <strong className="mt-1 block text-sm">Pro trial</strong>
+          <p className="mt-1 text-xs leading-5 text-muted">32 matches left</p>
         </section>
       </aside>
 
-      <main className="min-w-0 px-4 py-5 sm:px-6 lg:px-10 lg:py-6">
+      <main className="min-w-0 px-4 py-4 sm:px-6 lg:px-8">
         <Hero />
         {activeView === "dashboard" && <DashboardView onNavigate={setActiveView} />}
         {activeView === "profile" && <ProfileView />}
@@ -115,8 +104,8 @@ export function AppShell() {
 
 function Hero() {
   return (
-    <header className="flex items-center justify-between gap-4 pb-6">
-      <button className="inline-flex min-h-10 items-center gap-2 rounded-xl border border-line/80 bg-white/70 px-3 text-sm font-bold text-muted transition hover:bg-white">
+    <header className="flex items-center justify-between gap-4 pb-4">
+      <button className="inline-flex min-h-9 items-center gap-2 rounded-lg px-2.5 text-sm font-medium text-muted transition hover:bg-white">
         <Clock3 className="h-4 w-4" aria-hidden="true" />
         Recent
       </button>
@@ -129,29 +118,26 @@ function Hero() {
 
 function DashboardView({ onNavigate }: { onNavigate: (view: ViewId) => void }) {
   return (
-    <section aria-labelledby="dashboard-title" className="mx-auto max-w-5xl">
-      <div className="pt-6 text-center lg:pt-12">
-        <p className="text-sm font-bold text-pilot-green">Career search, tuned to you</p>
+    <section aria-labelledby="dashboard-title" className="mx-auto max-w-4xl">
+      <div className="pt-10 text-center lg:pt-20">
+        <p className="text-sm font-medium text-muted">Career search, tuned to you</p>
         <h1
           id="dashboard-title"
-          className="mx-auto mt-4 max-w-3xl text-4xl font-semibold leading-tight tracking-normal sm:text-5xl"
+          className="mx-auto mt-3 max-w-3xl text-4xl font-medium leading-tight tracking-normal sm:text-5xl"
         >
           What role should we find and prepare today?
         </h1>
-        <p className="mx-auto mt-4 max-w-2xl leading-7 text-muted">
-          Search across regions, compare matches, tailor your CV, and keep every application ready for approval.
-        </p>
       </div>
 
       <CommandComposer onNavigate={onNavigate} />
 
-      <div className="mt-8 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+      <div className="mx-auto mt-5 grid max-w-3xl grid-cols-2 gap-2 sm:grid-cols-4">
         {metrics.map((metric) => (
           <MetricCard key={metric.label} metric={metric} />
         ))}
       </div>
 
-      <div className="mt-5 grid gap-4 xl:grid-cols-[1.1fr_0.9fr]">
+      <div className="mt-8 grid gap-4 xl:grid-cols-[1.1fr_0.9fr]">
         <Panel title="Best matches" action="View all">
           <div className="grid gap-2">
             {jobMatches.map((job) => (
@@ -182,17 +168,17 @@ function DashboardView({ onNavigate }: { onNavigate: (view: ViewId) => void }) {
 
 function CommandComposer({ onNavigate }: { onNavigate: (view: ViewId) => void }) {
   return (
-    <div className="mx-auto mt-8 max-w-3xl rounded-2xl border border-line/90 bg-white p-3 shadow-quiet">
+    <div className="mx-auto mt-7 max-w-3xl rounded-2xl border border-line bg-white p-3 shadow-quiet">
       <div className="flex gap-3">
-        <Search className="mt-3 h-5 w-5 shrink-0 text-pilot-green" aria-hidden="true" />
+        <Search className="mt-3 h-5 w-5 shrink-0 text-muted" aria-hidden="true" />
         <textarea
           aria-label="Career search prompt"
           rows={3}
           defaultValue="Find remote operations or customer success roles in the UK and Europe, then prepare a tailored CV draft."
-          className="min-h-24 flex-1 resize-none bg-transparent p-1 leading-7 outline-none"
+          className="min-h-24 flex-1 resize-none bg-transparent p-1 text-[15px] leading-7 outline-none"
         />
       </div>
-      <div className="mt-3 flex flex-wrap items-center justify-between gap-3 border-t border-line/80 pt-3">
+      <div className="mt-3 flex flex-wrap items-center justify-between gap-3 border-t border-line pt-3">
         <div className="flex flex-wrap gap-2">
           <CommandChip icon={Globe2} label="Global" />
           <CommandChip icon={FileText} label="Use master CV" />
@@ -201,7 +187,7 @@ function CommandComposer({ onNavigate }: { onNavigate: (view: ViewId) => void })
         <button
           type="button"
           onClick={() => onNavigate("jobs")}
-          className="inline-flex min-h-10 items-center justify-center gap-2 rounded-xl bg-pilot-green px-4 text-sm font-bold text-white transition hover:bg-[#196961]"
+          className="inline-flex min-h-10 items-center justify-center gap-2 rounded-xl bg-ink px-4 text-sm font-semibold text-white transition hover:bg-[#353535]"
         >
           Search jobs
           <SendHorizontal className="h-4 w-4" aria-hidden="true" />
@@ -215,7 +201,7 @@ function CommandChip({ icon: Icon, label }: { icon: typeof Globe2; label: string
   return (
     <button
       type="button"
-      className="inline-flex min-h-9 items-center gap-2 rounded-full border border-line/80 bg-[#fbfaf7] px-3 text-sm font-bold text-muted transition hover:border-pilot-green hover:text-pilot-green"
+      className="inline-flex min-h-9 items-center gap-2 rounded-full border border-line bg-[#f7f7f4] px-3 text-sm font-medium text-muted transition hover:bg-white hover:text-ink"
     >
       <Icon className="h-4 w-4" aria-hidden="true" />
       {label}
@@ -390,10 +376,9 @@ function SectionHeading({
 
 function MetricCard({ metric }: { metric: Metric }) {
   return (
-    <article className="min-h-28 rounded-2xl border border-line/90 bg-white/80 p-4">
-      <p className="text-sm text-muted">{metric.label}</p>
-      <strong className="mt-3 block text-3xl leading-none">{metric.value}</strong>
-      <span className="mt-3 block text-sm text-muted">{metric.detail}</span>
+    <article className="rounded-xl border border-line bg-white/70 p-3 text-center">
+      <strong className="block text-2xl font-semibold leading-none">{metric.value}</strong>
+      <p className="mt-2 text-xs font-medium text-muted">{metric.label}</p>
     </article>
   );
 }
@@ -408,7 +393,7 @@ function Panel({
   children: React.ReactNode;
 }) {
   return (
-    <section className="rounded-2xl border border-line/90 bg-white/85 p-5 shadow-quiet">
+    <section className="rounded-2xl border border-line bg-white p-5">
       <div className="mb-5 flex items-center justify-between gap-3">
         <h3 className="text-lg font-bold">{title}</h3>
         {action && <button className="font-bold text-pilot-green">{action}</button>}
@@ -420,7 +405,7 @@ function Panel({
 
 function JobRow({ job }: { job: JobMatch }) {
   return (
-    <article className="flex flex-col gap-3 rounded-xl border border-line/80 bg-[#fbfaf7] p-4 sm:flex-row sm:items-center sm:justify-between">
+    <article className="flex flex-col gap-3 rounded-xl border border-line bg-[#fafaf8] p-4 sm:flex-row sm:items-center sm:justify-between">
       <div>
         <div className="flex flex-wrap items-center gap-2">
           <h4 className="font-bold">{job.title}</h4>
@@ -453,10 +438,10 @@ function Button({
     <button
       type="button"
       onClick={onClick}
-      className={`inline-flex min-h-11 items-center justify-center gap-2 rounded-xl px-4 font-bold transition ${
+      className={`inline-flex min-h-10 items-center justify-center gap-2 rounded-lg px-3 text-sm font-semibold transition ${
         variant === "primary"
-          ? "bg-ink text-white hover:bg-[#343632]"
-          : "border border-line/90 bg-white/80 text-ink hover:bg-white"
+          ? "bg-ink text-white hover:bg-[#353535]"
+          : "border border-line bg-white text-ink hover:bg-[#f7f7f4]"
       }`}
     >
       {children}
