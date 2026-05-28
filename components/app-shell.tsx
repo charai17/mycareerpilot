@@ -5,11 +5,17 @@ import {
   ArrowRight,
   Check,
   CircleDollarSign,
+  Clock3,
   Database,
   FileSearch,
+  FileText,
   Globe2,
   KeyRound,
   LockKeyhole,
+  Plus,
+  Search,
+  SendHorizontal,
+  SlidersHorizontal,
   Sparkles
 } from "lucide-react";
 import { AuthStatus } from "@/components/auth-status";
@@ -41,15 +47,15 @@ export function AppShell() {
   );
 
   return (
-    <div className="min-h-screen bg-canvas text-ink lg:grid lg:grid-cols-[280px_minmax(0,1fr)]">
-      <aside className="border-line bg-white/85 p-5 shadow-sm backdrop-blur lg:sticky lg:top-0 lg:flex lg:h-screen lg:flex-col lg:border-r lg:p-6">
+    <div className="min-h-screen bg-canvas text-ink lg:grid lg:grid-cols-[244px_minmax(0,1fr)]">
+      <aside className="border-line/80 bg-[#fbfaf7]/90 p-4 shadow-sm backdrop-blur lg:sticky lg:top-0 lg:flex lg:h-screen lg:flex-col lg:border-r lg:p-4">
         <div className="flex items-center justify-between gap-4">
           <button
-            className="inline-flex items-center gap-3 text-left font-bold"
+            className="inline-flex items-center gap-3 rounded-xl px-2 py-1.5 text-left font-bold transition hover:bg-white"
             type="button"
             onClick={() => setActiveView("dashboard")}
           >
-            <span className="grid h-9 w-9 place-items-center rounded-lg bg-ink text-white">m</span>
+            <span className="grid h-8 w-8 place-items-center rounded-lg bg-pilot-green text-white">m</span>
             <span>mycareerpilot</span>
           </button>
           <span className="rounded-full border border-line px-3 py-1 text-xs font-bold text-muted lg:hidden">
@@ -57,7 +63,16 @@ export function AppShell() {
           </span>
         </div>
 
-        <nav className="mt-6 grid gap-1 sm:grid-cols-2 lg:grid-cols-1" aria-label="Primary navigation">
+        <button
+          type="button"
+          onClick={() => setActiveView("jobs")}
+          className="mt-6 inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-ink px-3 text-sm font-bold text-white transition hover:bg-[#343632]"
+        >
+          <Plus className="h-4 w-4" aria-hidden="true" />
+          New search
+        </button>
+
+        <nav className="mt-4 grid gap-1 sm:grid-cols-2 lg:grid-cols-1" aria-label="Primary navigation">
           {navigation.map((item) => {
             const Icon = item.icon;
             const selected = activeView === item.id;
@@ -67,8 +82,8 @@ export function AppShell() {
                 key={item.id}
                 type="button"
                 onClick={() => setActiveView(item.id)}
-                className={`flex min-h-11 items-center gap-3 rounded-lg px-3 py-2 text-left text-sm font-bold transition ${
-                  selected ? "bg-pilot-greenSoft text-pilot-green" : "text-slate-700 hover:bg-slate-100"
+                className={`flex min-h-10 items-center gap-3 rounded-xl px-3 py-2 text-left text-sm font-bold transition ${
+                  selected ? "bg-white text-pilot-green shadow-sm" : "text-[#5f615b] hover:bg-white/75"
                 }`}
               >
                 <Icon className="h-4 w-4" aria-hidden="true" />
@@ -78,14 +93,14 @@ export function AppShell() {
           })}
         </nav>
 
-        <section className="mt-6 rounded-lg border border-line bg-white p-4 shadow-quiet lg:mt-auto">
-          <p className="text-xs font-bold uppercase text-pilot-green">Plan</p>
+        <section className="mt-6 rounded-xl border border-line/80 bg-white/75 p-4 lg:mt-auto">
+          <p className="text-xs font-bold uppercase text-pilot-green">Workspace</p>
           <strong className="mt-1 block">Pro trial</strong>
-          <p className="mt-2 text-sm leading-6 text-muted">32 AI matches and 8 tailored CV drafts remaining.</p>
+          <p className="mt-2 text-sm leading-6 text-muted">32 matches and 8 tailored CV drafts remaining.</p>
         </section>
       </aside>
 
-      <main className="min-w-0 px-4 py-6 sm:px-6 lg:px-12 lg:py-8">
+      <main className="min-w-0 px-4 py-5 sm:px-6 lg:px-10 lg:py-6">
         <Hero />
         {activeView === "dashboard" && <DashboardView onNavigate={setActiveView} />}
         {activeView === "profile" && <ProfileView />}
@@ -100,15 +115,12 @@ export function AppShell() {
 
 function Hero() {
   return (
-    <header className="flex flex-col gap-5 pb-7 lg:flex-row lg:items-start lg:justify-between">
-      <div>
-        <p className="text-xs font-bold uppercase text-pilot-green">Global job search assistant</p>
-        <h1 className="mt-2 max-w-3xl text-4xl font-bold leading-none tracking-normal sm:text-5xl lg:text-6xl">
-          Find, tailor, apply, and track in one calm workspace.
-        </h1>
-      </div>
+    <header className="flex items-center justify-between gap-4 pb-6">
+      <button className="inline-flex min-h-10 items-center gap-2 rounded-xl border border-line/80 bg-white/70 px-3 text-sm font-bold text-muted transition hover:bg-white">
+        <Clock3 className="h-4 w-4" aria-hidden="true" />
+        Recent
+      </button>
       <div className="flex shrink-0 flex-col gap-2 sm:flex-row">
-        <Button variant="secondary">Preview profile</Button>
         <AuthStatus />
       </div>
     </header>
@@ -117,23 +129,31 @@ function Hero() {
 
 function DashboardView({ onNavigate }: { onNavigate: (view: ViewId) => void }) {
   return (
-    <section aria-labelledby="dashboard-title">
-      <SectionHeading eyebrow="Today" title="Command center">
-        <Button onClick={() => onNavigate("jobs")}>
-          Start search
-          <ArrowRight className="h-4 w-4" aria-hidden="true" />
-        </Button>
-      </SectionHeading>
+    <section aria-labelledby="dashboard-title" className="mx-auto max-w-5xl">
+      <div className="pt-6 text-center lg:pt-12">
+        <p className="text-sm font-bold text-pilot-green">Career search, tuned to you</p>
+        <h1
+          id="dashboard-title"
+          className="mx-auto mt-4 max-w-3xl text-4xl font-semibold leading-tight tracking-normal sm:text-5xl"
+        >
+          What role should we find and prepare today?
+        </h1>
+        <p className="mx-auto mt-4 max-w-2xl leading-7 text-muted">
+          Search across regions, compare matches, tailor your CV, and keep every application ready for approval.
+        </p>
+      </div>
 
-      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+      <CommandComposer onNavigate={onNavigate} />
+
+      <div className="mt-8 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
         {metrics.map((metric) => (
           <MetricCard key={metric.label} metric={metric} />
         ))}
       </div>
 
-      <div className="mt-5 grid gap-5 xl:grid-cols-[1.1fr_0.9fr]">
+      <div className="mt-5 grid gap-4 xl:grid-cols-[1.1fr_0.9fr]">
         <Panel title="Best matches" action="View all">
-          <div className="grid gap-3">
+          <div className="grid gap-2">
             {jobMatches.map((job) => (
               <JobRow key={job.id} job={job} />
             ))}
@@ -141,10 +161,10 @@ function DashboardView({ onNavigate }: { onNavigate: (view: ViewId) => void }) {
         </Panel>
 
         <Panel title="Application queue" action="Review">
-          <ol className="grid gap-4">
+          <ol className="grid gap-3">
             {applicationSteps.map((step, index) => (
               <li key={step.title} className="flex gap-3">
-                <span className="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-slate-100 text-sm font-black text-pilot-blue">
+                <span className="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-[#f1eee6] text-sm font-black text-pilot-blue">
                   {index + 1}
                 </span>
                 <div>
@@ -160,9 +180,52 @@ function DashboardView({ onNavigate }: { onNavigate: (view: ViewId) => void }) {
   );
 }
 
+function CommandComposer({ onNavigate }: { onNavigate: (view: ViewId) => void }) {
+  return (
+    <div className="mx-auto mt-8 max-w-3xl rounded-2xl border border-line/90 bg-white p-3 shadow-quiet">
+      <div className="flex gap-3">
+        <Search className="mt-3 h-5 w-5 shrink-0 text-pilot-green" aria-hidden="true" />
+        <textarea
+          aria-label="Career search prompt"
+          rows={3}
+          defaultValue="Find remote operations or customer success roles in the UK and Europe, then prepare a tailored CV draft."
+          className="min-h-24 flex-1 resize-none bg-transparent p-1 leading-7 outline-none"
+        />
+      </div>
+      <div className="mt-3 flex flex-wrap items-center justify-between gap-3 border-t border-line/80 pt-3">
+        <div className="flex flex-wrap gap-2">
+          <CommandChip icon={Globe2} label="Global" />
+          <CommandChip icon={FileText} label="Use master CV" />
+          <CommandChip icon={SlidersHorizontal} label="Filters" />
+        </div>
+        <button
+          type="button"
+          onClick={() => onNavigate("jobs")}
+          className="inline-flex min-h-10 items-center justify-center gap-2 rounded-xl bg-pilot-green px-4 text-sm font-bold text-white transition hover:bg-[#196961]"
+        >
+          Search jobs
+          <SendHorizontal className="h-4 w-4" aria-hidden="true" />
+        </button>
+      </div>
+    </div>
+  );
+}
+
+function CommandChip({ icon: Icon, label }: { icon: typeof Globe2; label: string }) {
+  return (
+    <button
+      type="button"
+      className="inline-flex min-h-9 items-center gap-2 rounded-full border border-line/80 bg-[#fbfaf7] px-3 text-sm font-bold text-muted transition hover:border-pilot-green hover:text-pilot-green"
+    >
+      <Icon className="h-4 w-4" aria-hidden="true" />
+      {label}
+    </button>
+  );
+}
+
 function ProfileView() {
   return (
-    <section aria-labelledby="profile-title">
+    <section aria-labelledby="profile-title" className="mx-auto max-w-6xl">
       <SectionHeading eyebrow="Onboarding" title="Career profile">
         <span className="rounded-full border border-line bg-white px-3 py-1 text-sm font-bold text-muted">
           Supabase-backed
@@ -176,32 +239,39 @@ function ProfileView() {
 
 function JobsView() {
   return (
-    <section aria-labelledby="jobs-title">
+    <section aria-labelledby="jobs-title" className="mx-auto max-w-6xl">
       <SectionHeading eyebrow="Discovery" title="Job search">
         <Button>Run search</Button>
       </SectionHeading>
 
-      <div className="mb-5 grid gap-3 lg:grid-cols-[minmax(0,1fr)_220px_auto]">
-        <input
-          aria-label="Search query"
-          defaultValue="remote operations manager"
-          className="h-12 rounded-lg border border-line bg-white px-3 outline-none focus:border-pilot-green"
-        />
-        <select
-          aria-label="Region"
-          className="h-12 rounded-lg border border-line bg-white px-3 outline-none focus:border-pilot-green"
-        >
-          <option>Global regions</option>
-          <option>United Kingdom</option>
-          <option>United States</option>
-          <option>Europe</option>
-        </select>
-        <Button variant="secondary">Filters</Button>
+      <div className="mb-5 rounded-2xl border border-line/90 bg-white p-3 shadow-quiet">
+        <div className="flex items-center gap-3">
+          <Search className="h-5 w-5 text-pilot-green" aria-hidden="true" />
+          <input
+            aria-label="Search query"
+            defaultValue="remote operations manager"
+            className="h-12 flex-1 bg-transparent px-1 outline-none"
+          />
+          <button
+            type="button"
+            className="grid h-10 w-10 place-items-center rounded-xl border border-line text-muted transition hover:border-pilot-green hover:text-pilot-green"
+            aria-label="Filters"
+          >
+            <SlidersHorizontal className="h-4 w-4" aria-hidden="true" />
+          </button>
+        </div>
+        <div className="mt-2 flex flex-wrap gap-2 border-t border-line/80 pt-3">
+          {["Global regions", "United Kingdom", "Remote", "Mid to senior", "GBP 55k+"].map((filter) => (
+            <span key={filter} className="rounded-full bg-[#f4f1ea] px-3 py-1.5 text-sm font-bold text-muted">
+              {filter}
+            </span>
+          ))}
+        </div>
       </div>
 
       <div className="grid gap-4 lg:grid-cols-3">
         {sourceCards.map((source) => (
-          <article key={source.title} className="rounded-lg border border-line bg-white p-5 shadow-quiet">
+          <article key={source.title} className="rounded-2xl border border-line/90 bg-white/85 p-5 shadow-quiet">
             <h3 className="text-lg font-bold">{source.title}</h3>
             <p className="mt-3 leading-6 text-muted">{source.detail}</p>
             <span className="mt-4 block text-sm font-black text-pilot-gold">{source.label}</span>
@@ -214,7 +284,7 @@ function JobsView() {
 
 function CvView() {
   return (
-    <section aria-labelledby="cv-title">
+    <section aria-labelledby="cv-title" className="mx-auto max-w-6xl">
       <SectionHeading eyebrow="Documents" title="CV Studio">
         <Button>Generate tailored CV</Button>
       </SectionHeading>
@@ -226,7 +296,7 @@ function CvView() {
 
 function ApplyView() {
   return (
-    <section aria-labelledby="apply-title">
+    <section aria-labelledby="apply-title" className="mx-auto max-w-6xl">
       <SectionHeading eyebrow="Automation" title="Assisted apply">
         <Button>Review application</Button>
       </SectionHeading>
@@ -241,7 +311,7 @@ function ApplyView() {
           <article
             key={title}
             className={`rounded-lg border p-5 shadow-quiet ${
-              index === 0 ? "border-emerald-200 bg-emerald-50" : "border-line bg-white"
+              index === 0 ? "border-emerald-200 bg-emerald-50" : "border-line/90 bg-white/85"
             }`}
           >
             <span className="text-sm font-black text-pilot-green">{number}</span>
@@ -251,7 +321,7 @@ function ApplyView() {
         ))}
       </div>
 
-      <article className="mt-5 rounded-lg border border-line bg-white p-5 shadow-quiet">
+      <article className="mt-5 rounded-2xl border border-line/90 bg-white p-5 shadow-quiet">
         <div className="flex items-center gap-3">
           <LockKeyhole className="h-5 w-5 text-pilot-green" aria-hidden="true" />
           <h3 className="text-lg font-bold">Recommended launch rule</h3>
@@ -262,7 +332,7 @@ function ApplyView() {
         </p>
         <div className="mt-5 grid gap-3 md:grid-cols-3">
           {launchPrinciples.map((principle) => (
-            <div key={principle} className="flex gap-3 rounded-lg bg-slate-50 p-4 text-sm font-bold text-slate-700">
+            <div key={principle} className="flex gap-3 rounded-xl bg-[#f4f1ea] p-4 text-sm font-bold text-slate-700">
               <Check className="h-4 w-4 shrink-0 text-pilot-green" aria-hidden="true" />
               {principle}
             </div>
@@ -275,18 +345,18 @@ function ApplyView() {
 
 function TrackerView() {
   return (
-    <section aria-labelledby="tracker-title">
+    <section aria-labelledby="tracker-title" className="mx-auto max-w-6xl">
       <SectionHeading eyebrow="Pipeline" title="Application tracker">
         <Button variant="secondary">Export</Button>
       </SectionHeading>
 
       <div className="grid gap-4 xl:grid-cols-4">
         {trackerColumns.map((column) => (
-          <section key={column.title} className="min-h-72 rounded-lg border border-line bg-white p-4 shadow-quiet">
+          <section key={column.title} className="min-h-72 rounded-2xl border border-line/90 bg-white/85 p-4 shadow-quiet">
             <h3 className="font-bold">{column.title}</h3>
             <div className="mt-4 grid gap-3">
               {column.jobs.map((job) => (
-                <article key={job} className="rounded-lg border border-line bg-slate-50 p-3 text-sm font-bold">
+                <article key={job} className="rounded-xl border border-line/80 bg-[#fbfaf7] p-3 text-sm font-bold">
                   {job}
                 </article>
               ))}
@@ -311,7 +381,7 @@ function SectionHeading({
     <div className="mb-5 mt-2 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
       <div>
         <p className="text-xs font-bold uppercase text-pilot-green">{eyebrow}</p>
-        <h2 className="mt-1 text-3xl font-bold tracking-normal">{title}</h2>
+        <h2 className="mt-1 text-3xl font-semibold tracking-normal">{title}</h2>
       </div>
       {children}
     </div>
@@ -320,10 +390,10 @@ function SectionHeading({
 
 function MetricCard({ metric }: { metric: Metric }) {
   return (
-    <article className="min-h-36 rounded-lg border border-line bg-white p-5 shadow-quiet">
+    <article className="min-h-28 rounded-2xl border border-line/90 bg-white/80 p-4">
       <p className="text-sm text-muted">{metric.label}</p>
-      <strong className="mt-4 block text-4xl leading-none">{metric.value}</strong>
-      <span className="mt-4 block text-sm text-muted">{metric.detail}</span>
+      <strong className="mt-3 block text-3xl leading-none">{metric.value}</strong>
+      <span className="mt-3 block text-sm text-muted">{metric.detail}</span>
     </article>
   );
 }
@@ -338,7 +408,7 @@ function Panel({
   children: React.ReactNode;
 }) {
   return (
-    <section className="rounded-lg border border-line bg-white p-5 shadow-quiet">
+    <section className="rounded-2xl border border-line/90 bg-white/85 p-5 shadow-quiet">
       <div className="mb-5 flex items-center justify-between gap-3">
         <h3 className="text-lg font-bold">{title}</h3>
         {action && <button className="font-bold text-pilot-green">{action}</button>}
@@ -350,7 +420,7 @@ function Panel({
 
 function JobRow({ job }: { job: JobMatch }) {
   return (
-    <article className="flex flex-col gap-3 rounded-lg border border-line p-4 sm:flex-row sm:items-center sm:justify-between">
+    <article className="flex flex-col gap-3 rounded-xl border border-line/80 bg-[#fbfaf7] p-4 sm:flex-row sm:items-center sm:justify-between">
       <div>
         <div className="flex flex-wrap items-center gap-2">
           <h4 className="font-bold">{job.title}</h4>
@@ -383,10 +453,10 @@ function Button({
     <button
       type="button"
       onClick={onClick}
-      className={`inline-flex min-h-11 items-center justify-center gap-2 rounded-lg px-4 font-bold transition ${
+      className={`inline-flex min-h-11 items-center justify-center gap-2 rounded-xl px-4 font-bold transition ${
         variant === "primary"
-          ? "bg-ink text-white hover:bg-slate-800"
-          : "border border-line bg-white text-ink hover:border-slate-400"
+          ? "bg-ink text-white hover:bg-[#343632]"
+          : "border border-line/90 bg-white/80 text-ink hover:bg-white"
       }`}
     >
       {children}
@@ -417,7 +487,7 @@ function MiniNote({
   detail: string;
 }) {
   return (
-    <article className="rounded-lg border border-line bg-white p-4 shadow-quiet">
+    <article className="rounded-2xl border border-line/90 bg-white/85 p-4 shadow-quiet">
       <Icon className="h-5 w-5 text-pilot-green" aria-hidden="true" />
       <h3 className="mt-3 font-bold">{title}</h3>
       <p className="mt-2 text-sm leading-6 text-muted">{detail}</p>
