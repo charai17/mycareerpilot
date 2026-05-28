@@ -1,5 +1,6 @@
 .graphify-python/
 .graphify-wheelhouse/
+.npm-cache/
 node_modules/
 .next/
 dist/
