@@ -2,18 +2,14 @@ import {
   ClipboardCheck,
   FileText,
   LayoutDashboard,
-  Search,
-  Send,
-  UserRound
+  Search
 } from "lucide-react";
 import type { ApplicationStep, JobMatch, Metric, NavigationItem, SourceCard, TrackerColumn } from "./types";
 
 export const navigation: NavigationItem[] = [
   { id: "dashboard", label: "Dashboard", icon: LayoutDashboard },
-  { id: "profile", label: "Career Profile", icon: UserRound },
   { id: "jobs", label: "Job Search", icon: Search },
   { id: "cv", label: "CV Studio", icon: FileText },
-  { id: "apply", label: "Assisted Apply", icon: Send },
   { id: "tracker", label: "Tracker", icon: ClipboardCheck }
 ];
 
