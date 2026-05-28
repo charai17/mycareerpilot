@@ -3,7 +3,7 @@ import "./globals.css";
 
 export const metadata: Metadata = {
   title: "mycareerpilot",
-  description: "A calm AI workspace for job search, CV tailoring, assisted apply, and application tracking."
+  description: "A calm AI workspace for job search, CV creation, manual applications, and application tracking."
 };
 
 export default function RootLayout({
