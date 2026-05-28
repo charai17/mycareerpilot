@@ -4,7 +4,6 @@ import { useMemo, useState } from "react";
 import {
   ArrowRight,
   Check,
-  ChevronRight,
   CircleDollarSign,
   Database,
   FileSearch,
@@ -14,6 +13,7 @@ import {
   Sparkles
 } from "lucide-react";
 import { AuthStatus } from "@/components/auth-status";
+import { CvStudio } from "@/components/cv-studio";
 import { ProfileForm } from "@/components/profile-form";
 import {
   applicationSteps,
@@ -219,35 +219,7 @@ function CvView() {
         <Button>Generate tailored CV</Button>
       </SectionHeading>
 
-      <div className="grid gap-5 xl:grid-cols-[0.9fr_1.1fr]">
-        <Panel title="Build from scratch">
-          <p className="leading-6 text-muted">
-            Create a master CV from profile data, then generate tailored versions for each job.
-          </p>
-          <div className="mt-5 grid gap-3">
-            {["Professional CV", "Modern CV", "ATS-friendly CV"].map((label) => (
-              <button
-                key={label}
-                type="button"
-                className="flex min-h-12 items-center justify-between rounded-lg border border-line bg-white px-4 text-left font-bold transition hover:border-pilot-green"
-              >
-                {label}
-                <ChevronRight className="h-4 w-4 text-muted" aria-hidden="true" />
-              </button>
-            ))}
-          </div>
-        </Panel>
-
-        <article className="grid min-h-[460px] content-start gap-4 rounded-lg border border-line bg-white p-8 shadow-quiet">
-          <div className="h-7 w-7/12 rounded bg-ink" />
-          <div className="h-3 rounded bg-slate-200" />
-          <div className="h-3 w-5/12 rounded bg-slate-200" />
-          <div className="h-28 rounded bg-slate-100" />
-          <div className="h-3 rounded bg-slate-200" />
-          <div className="h-3 w-6/12 rounded bg-slate-200" />
-          <div className="h-24 rounded bg-slate-100" />
-        </article>
-      </div>
+      <CvStudio />
     </section>
   );
 }
