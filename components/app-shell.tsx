@@ -4,7 +4,6 @@ import { useMemo, useState } from "react";
 import {
   ArrowRight,
   BriefcaseBusiness,
-  Check,
   CircleDollarSign,
   Clock3,
   Database,
@@ -12,19 +11,15 @@ import {
   FileText,
   Globe2,
   KeyRound,
-  LockKeyhole,
   ShieldCheck,
-  Target,
   Sparkles
 } from "lucide-react";
 import { AuthStatus } from "@/components/auth-status";
 import { CvStudio } from "@/components/cv-studio";
 import { JobDiscoveryFlow } from "@/components/job-discovery-flow";
-import { ProfileForm } from "@/components/profile-form";
 import {
   applicationSteps,
   jobMatches,
-  launchPrinciples,
   metrics,
   navigation,
   trackerColumns
@@ -93,10 +88,8 @@ export function AppShell() {
       <main className="min-w-0 px-4 py-4 sm:px-6 lg:px-8">
         <Hero />
         {activeView === "dashboard" && <DashboardView onNavigate={setActiveView} />}
-        {activeView === "profile" && <ProfileView />}
         {activeView === "jobs" && <JobsView />}
         {activeView === "cv" && <CvView />}
-        {activeView === "apply" && <ApplyView />}
         {activeView === "tracker" && <TrackerView />}
       </main>
     </div>
@@ -178,10 +171,10 @@ const services: Array<{
 }> = [
   {
     title: "Job Discovery Pilot",
-    detail: "Find relevant roles by location, seniority, salary, and career profile fit.",
+    detail: "Find relevant roles and prepare assisted applications from one place.",
     view: "jobs",
     icon: BriefcaseBusiness,
-    label: "Search roles"
+    label: "Search jobs"
   },
   {
     title: "Professional CV Studio",
@@ -191,14 +184,7 @@ const services: Array<{
     label: "Build CV"
   },
   {
-    title: "Role-Tailored CV",
-    detail: "Adapt your saved CV to a specific vacancy before you apply.",
-    view: "cv",
-    icon: Target,
-    label: "Tailor CV"
-  },
-  {
-    title: "Application Command Centre",
+    title: "Application Tracker",
     detail: "Track every saved role, draft, submission, interview, and follow-up.",
     view: "tracker",
     icon: ShieldCheck,
@@ -257,20 +243,6 @@ function CvCta({ onNavigate }: { onNavigate: (view: ViewId) => void }) {
   );
 }
 
-function ProfileView() {
-  return (
-    <section aria-labelledby="profile-title" className="mx-auto max-w-6xl">
-      <SectionHeading eyebrow="Onboarding" title="Career profile">
-        <span className="rounded-full border border-line bg-white px-3 py-1 text-sm font-bold text-muted">
-          Supabase-backed
-        </span>
-      </SectionHeading>
-
-      <ProfileForm />
-    </section>
-  );
-}
-
 function JobsView() {
   return (
     <section aria-labelledby="jobs-title" className="mx-auto max-w-6xl">
@@ -291,55 +263,6 @@ function CvView() {
       </SectionHeading>
 
       <CvStudio />
-    </section>
-  );
-}
-
-function ApplyView() {
-  return (
-    <section aria-labelledby="apply-title" className="mx-auto max-w-6xl">
-      <SectionHeading eyebrow="Automation" title="Assisted apply">
-        <Button>Review application</Button>
-      </SectionHeading>
-
-      <div className="grid gap-4 lg:grid-cols-4">
-        {[
-          ["01", "Find eligible jobs", "Searches selected regions and excludes roles that fail user rules."],
-          ["02", "Prepare application", "Tailors CV, drafts cover letter, and fills common questions."],
-          ["03", "Ask for approval", "The user reviews exactly what will be submitted."],
-          ["04", "Submit if allowed", "Only sends after permission, and only on supported sources."]
-        ].map(([number, title, detail], index) => (
-          <article
-            key={title}
-            className={`rounded-lg border p-5 shadow-quiet ${
-              index === 0 ? "border-emerald-200 bg-emerald-50" : "border-line/90 bg-white/85"
-            }`}
-          >
-            <span className="text-sm font-black text-pilot-green">{number}</span>
-            <h3 className="mt-3 text-lg font-bold">{title}</h3>
-            <p className="mt-3 leading-6 text-muted">{detail}</p>
-          </article>
-        ))}
-      </div>
-
-      <article className="mt-5 rounded-2xl border border-line/90 bg-white p-5 shadow-quiet">
-        <div className="flex items-center gap-3">
-          <LockKeyhole className="h-5 w-5 text-pilot-green" aria-hidden="true" />
-          <h3 className="text-lg font-bold">Recommended launch rule</h3>
-        </div>
-        <p className="mt-3 max-w-4xl leading-7 text-muted">
-          Start with assisted approval: mycareerpilot prepares and fills the application, then the user confirms before
-          it sends. Later, paid users can enable trusted auto-submit rules for specific job types, regions, and sources.
-        </p>
-        <div className="mt-5 grid gap-3 md:grid-cols-3">
-          {launchPrinciples.map((principle) => (
-            <div key={principle} className="flex gap-3 rounded-xl bg-[#f4f1ea] p-4 text-sm font-bold text-slate-700">
-              <Check className="h-4 w-4 shrink-0 text-pilot-green" aria-hidden="true" />
-              {principle}
-            </div>
-          ))}
-        </div>
-      </article>
     </section>
   );
 }
