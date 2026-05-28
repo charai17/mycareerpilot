@@ -1,6 +1,6 @@
 import type { LucideIcon } from "lucide-react";
 
-export type ViewId = "dashboard" | "profile" | "jobs" | "cv" | "apply" | "tracker";
+export type ViewId = "dashboard" | "jobs" | "cv" | "tracker";
 
 export type NavigationItem = {
   id: ViewId;
