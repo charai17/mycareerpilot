@@ -23,3 +23,14 @@ The next milestone is to wire the app foundation into real services:
 - AI-assisted CV tailoring and application review
 
 The product should start with assisted approval: the AI prepares applications, but the user reviews before anything is submitted.
+
+## Local Setup
+
+Create `.env.local` using `.env.example`, then run:
+
+```bash
+npm install
+npm run dev
+```
+
+The Supabase starter schema lives in `supabase/schema.sql`.
