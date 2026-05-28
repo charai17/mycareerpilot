@@ -13,14 +13,13 @@ import {
   Globe2,
   KeyRound,
   LockKeyhole,
-  Search,
   ShieldCheck,
-  SlidersHorizontal,
   Target,
   Sparkles
 } from "lucide-react";
 import { AuthStatus } from "@/components/auth-status";
 import { CvStudio } from "@/components/cv-studio";
+import { JobDiscoveryFlow } from "@/components/job-discovery-flow";
 import { ProfileForm } from "@/components/profile-form";
 import {
   applicationSteps,
@@ -28,7 +27,6 @@ import {
   launchPrinciples,
   metrics,
   navigation,
-  sourceCards,
   trackerColumns
 } from "@/lib/mock-data";
 import type { JobMatch, Metric, ViewId } from "@/lib/types";
@@ -280,40 +278,7 @@ function JobsView() {
         <Button>Run search</Button>
       </SectionHeading>
 
-      <div className="mb-5 rounded-2xl border border-line/90 bg-white p-3 shadow-quiet">
-        <div className="flex items-center gap-3">
-          <Search className="h-5 w-5 text-pilot-green" aria-hidden="true" />
-          <input
-            aria-label="Search query"
-            defaultValue="remote operations manager"
-            className="h-12 flex-1 bg-transparent px-1 outline-none"
-          />
-          <button
-            type="button"
-            className="grid h-10 w-10 place-items-center rounded-xl border border-line text-muted transition hover:border-pilot-green hover:text-pilot-green"
-            aria-label="Filters"
-          >
-            <SlidersHorizontal className="h-4 w-4" aria-hidden="true" />
-          </button>
-        </div>
-        <div className="mt-2 flex flex-wrap gap-2 border-t border-line/80 pt-3">
-          {["Global regions", "United Kingdom", "Remote", "Mid to senior", "GBP 55k+"].map((filter) => (
-            <span key={filter} className="rounded-full bg-[#f4f1ea] px-3 py-1.5 text-sm font-bold text-muted">
-              {filter}
-            </span>
-          ))}
-        </div>
-      </div>
-
-      <div className="grid gap-4 lg:grid-cols-3">
-        {sourceCards.map((source) => (
-          <article key={source.title} className="rounded-2xl border border-line/90 bg-white/85 p-5 shadow-quiet">
-            <h3 className="text-lg font-bold">{source.title}</h3>
-            <p className="mt-3 leading-6 text-muted">{source.detail}</p>
-            <span className="mt-4 block text-sm font-black text-pilot-gold">{source.label}</span>
-          </article>
-        ))}
-      </div>
+      <JobDiscoveryFlow />
     </section>
   );
 }
