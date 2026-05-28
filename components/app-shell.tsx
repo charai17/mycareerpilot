@@ -2,6 +2,8 @@
 
 import { useMemo, useState } from "react";
 import {
+  ArrowRight,
+  BriefcaseBusiness,
   Check,
   CircleDollarSign,
   Clock3,
@@ -12,8 +14,9 @@ import {
   KeyRound,
   LockKeyhole,
   Search,
-  SendHorizontal,
+  ShieldCheck,
   SlidersHorizontal,
+  Target,
   Sparkles
 } from "lucide-react";
 import { AuthStatus } from "@/components/auth-status";
@@ -119,17 +122,19 @@ function Hero() {
 function DashboardView({ onNavigate }: { onNavigate: (view: ViewId) => void }) {
   return (
     <section aria-labelledby="dashboard-title" className="mx-auto max-w-4xl">
-      <div className="pt-10 text-center lg:pt-20">
+      <div className="pt-8 text-center lg:pt-14">
         <p className="text-sm font-medium text-muted">Career search, tuned to you</p>
         <h1
           id="dashboard-title"
           className="mx-auto mt-3 max-w-3xl text-4xl font-medium leading-tight tracking-normal sm:text-5xl"
         >
-          What role should we find and prepare today?
+          Choose the career service you want to start with.
         </h1>
       </div>
 
-      <CommandComposer onNavigate={onNavigate} />
+      <ServiceLauncher onNavigate={onNavigate} />
+
+      <CvCta onNavigate={onNavigate} />
 
       <div className="mx-auto mt-5 grid max-w-3xl grid-cols-2 gap-2 sm:grid-cols-4">
         {metrics.map((metric) => (
@@ -166,46 +171,91 @@ function DashboardView({ onNavigate }: { onNavigate: (view: ViewId) => void }) {
   );
 }
 
-function CommandComposer({ onNavigate }: { onNavigate: (view: ViewId) => void }) {
+const services: Array<{
+  title: string;
+  detail: string;
+  view: ViewId;
+  icon: typeof BriefcaseBusiness;
+  label: string;
+}> = [
+  {
+    title: "Job Discovery Pilot",
+    detail: "Find relevant roles by location, seniority, salary, and career profile fit.",
+    view: "jobs",
+    icon: BriefcaseBusiness,
+    label: "Search roles"
+  },
+  {
+    title: "Professional CV Studio",
+    detail: "Build a polished master CV designed for recruiter scans and ATS systems.",
+    view: "cv",
+    icon: FileText,
+    label: "Build CV"
+  },
+  {
+    title: "Role-Tailored CV",
+    detail: "Adapt your saved CV to a specific vacancy before you apply.",
+    view: "cv",
+    icon: Target,
+    label: "Tailor CV"
+  },
+  {
+    title: "Application Command Centre",
+    detail: "Track every saved role, draft, submission, interview, and follow-up.",
+    view: "tracker",
+    icon: ShieldCheck,
+    label: "Open tracker"
+  }
+];
+
+function ServiceLauncher({ onNavigate }: { onNavigate: (view: ViewId) => void }) {
   return (
-    <div className="mx-auto mt-7 max-w-3xl rounded-2xl border border-line bg-white p-3 shadow-quiet">
-      <div className="flex gap-3">
-        <Search className="mt-3 h-5 w-5 shrink-0 text-muted" aria-hidden="true" />
-        <textarea
-          aria-label="Career search prompt"
-          rows={3}
-          defaultValue="Find remote operations or customer success roles in the UK and Europe, then prepare a tailored CV draft."
-          className="min-h-24 flex-1 resize-none bg-transparent p-1 text-[15px] leading-7 outline-none"
-        />
-      </div>
-      <div className="mt-3 flex flex-wrap items-center justify-between gap-3 border-t border-line pt-3">
-        <div className="flex flex-wrap gap-2">
-          <CommandChip icon={Globe2} label="Global" />
-          <CommandChip icon={FileText} label="Use master CV" />
-          <CommandChip icon={SlidersHorizontal} label="Filters" />
-        </div>
-        <button
-          type="button"
-          onClick={() => onNavigate("jobs")}
-          className="inline-flex min-h-10 items-center justify-center gap-2 rounded-xl bg-ink px-4 text-sm font-semibold text-white transition hover:bg-[#353535]"
-        >
-          Search jobs
-          <SendHorizontal className="h-4 w-4" aria-hidden="true" />
-        </button>
-      </div>
+    <div className="mx-auto mt-8 grid max-w-4xl gap-3 sm:grid-cols-2">
+      {services.map((service) => {
+        const Icon = service.icon;
+
+        return (
+          <button
+            key={service.title}
+            type="button"
+            onClick={() => onNavigate(service.view)}
+            className="group rounded-2xl border border-line bg-white p-5 text-left transition hover:border-[#cfcfca] hover:shadow-quiet"
+          >
+            <span className="grid h-10 w-10 place-items-center rounded-xl bg-[#f3f3ef] text-ink transition group-hover:bg-ink group-hover:text-white">
+              <Icon className="h-5 w-5" aria-hidden="true" />
+            </span>
+            <span className="mt-5 block text-lg font-semibold">{service.title}</span>
+            <span className="mt-2 block min-h-12 text-sm leading-6 text-muted">{service.detail}</span>
+            <span className="mt-5 inline-flex items-center gap-2 text-sm font-semibold text-ink">
+              {service.label}
+              <ArrowRight className="h-4 w-4 transition group-hover:translate-x-1" aria-hidden="true" />
+            </span>
+          </button>
+        );
+      })}
     </div>
   );
 }
 
-function CommandChip({ icon: Icon, label }: { icon: typeof Globe2; label: string }) {
+function CvCta({ onNavigate }: { onNavigate: (view: ViewId) => void }) {
   return (
-    <button
-      type="button"
-      className="inline-flex min-h-9 items-center gap-2 rounded-full border border-line bg-[#f7f7f4] px-3 text-sm font-medium text-muted transition hover:bg-white hover:text-ink"
-    >
-      <Icon className="h-4 w-4" aria-hidden="true" />
-      {label}
-    </button>
+    <section className="mx-auto mt-4 flex max-w-4xl flex-col gap-4 rounded-2xl border border-line bg-[#1f1f1f] p-5 text-white sm:flex-row sm:items-center sm:justify-between">
+      <div>
+        <p className="text-sm font-semibold text-[#b8d8d3]">Build the perfect CV</p>
+        <h2 className="mt-1 text-2xl font-medium tracking-normal">A stronger CV can improve job chances by 75%.</h2>
+        <p className="mt-2 max-w-2xl text-sm leading-6 text-[#d7d7d2]">
+          CareerPilot AI helps shape your master CV before tailoring it for each role.
+        </p>
+      </div>
+      <button
+        type="button"
+        onClick={() => onNavigate("cv")}
+        className="inline-flex min-h-10 shrink-0 items-center justify-center gap-2 rounded-lg bg-white px-4 text-sm font-semibold text-ink transition hover:bg-[#f1f1ec]"
+      >
+        Start CV
+        <ArrowRight className="h-4 w-4" aria-hidden="true" />
+      </button>
+    </section>
   );
 }
 
