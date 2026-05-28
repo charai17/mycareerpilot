@@ -1,8 +1,8 @@
 "use client";
 
-import { useEffect, useMemo, useState, type ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import type { User } from "@supabase/supabase-js";
-import { Bot, FileText, RefreshCw, Save, Send, Sparkles } from "lucide-react";
+import { Bot, Save, Send } from "lucide-react";
 import { supabase } from "@/lib/supabase/client";
 import type { Json } from "@/lib/database.types";
 
@@ -11,14 +11,6 @@ type CvContent = {
   experience: string;
   skills: string;
   education: string;
-};
-
-type CvRecord = {
-  id: string;
-  title: string;
-  source_type: "built" | "uploaded" | "tailored";
-  content: Json;
-  updated_at: string;
 };
 
 type CvFormState = CvContent & {
@@ -112,7 +104,6 @@ const defaultCv: CvFormState = {
 export function CvStudio() {
   const [user, setUser] = useState<User | null>(null);
   const [form, setForm] = useState<CvFormState>(defaultCv);
-  const [cvs, setCvs] = useState<CvRecord[]>([]);
   const [selectedCvId, setSelectedCvId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -126,16 +117,6 @@ export function CvStudio() {
   const complete = currentQuestionIndex >= cvQuestions.length;
   const progress = Math.round((answers.length / cvQuestions.length) * 100);
 
-  const previewLines = useMemo(
-    () => [
-      form.summary,
-      form.experience,
-      `Skills: ${form.skills}`,
-      form.education
-    ],
-    [form]
-  );
-
   useEffect(() => {
     let mounted = true;
 
@@ -146,10 +127,6 @@ export function CvStudio() {
       }
 
       setUser(data.user);
-      if (data.user) {
-        await loadCvs(data.user.id);
-      }
-
       setLoading(false);
     }
 
@@ -159,10 +136,7 @@ export function CvStudio() {
       data: { subscription }
     } = supabase.auth.onAuthStateChange(async (_event, session) => {
       setUser(session?.user ?? null);
-      if (session?.user) {
-        await loadCvs(session.user.id);
-      } else {
-        setCvs([]);
+      if (!session?.user) {
         setSelectedCvId(null);
       }
     });
@@ -172,26 +146,6 @@ export function CvStudio() {
       subscription.unsubscribe();
     };
   }, []);
-
-  async function loadCvs(userId: string) {
-    const { data, error: loadError } = await supabase
-      .from("cvs")
-      .select("id,title,source_type,content,updated_at")
-      .eq("user_id", userId)
-      .order("updated_at", { ascending: false });
-
-    if (loadError) {
-      setError(loadError.message);
-      return;
-    }
-
-    const records = data ?? [];
-    setCvs(records);
-
-    if (records[0] && !selectedCvId) {
-      loadIntoForm(records[0]);
-    }
-  }
 
   function submitAnswer() {
     const value = draftAnswer.trim();
@@ -230,21 +184,6 @@ export function CvStudio() {
     setSelectedCvId(null);
     setForm(defaultCv);
     setMessage("Started a new CV interview.");
-    setError(null);
-  }
-
-  function loadIntoForm(cv: CvRecord) {
-    const content = normalizeContent(cv.content);
-    setSelectedCvId(cv.id);
-    setForm({
-      title: cv.title,
-      recommendedStyle: content.recommendedStyle,
-      summary: content.summary,
-      experience: content.experience,
-      skills: content.skills,
-      education: content.education
-    });
-    setMessage(`Loaded ${cv.title}.`);
     setError(null);
   }
 
@@ -291,7 +230,6 @@ export function CvStudio() {
     } else {
       setSelectedCvId(data.id);
       setMessage("CV saved.");
-      await loadCvs(user.id);
     }
 
     setSaving(false);
@@ -316,8 +254,8 @@ export function CvStudio() {
         </div>
       </section>
 
-      <div className="grid gap-5 xl:grid-cols-[0.95fr_1.05fr]">
-        <section className="rounded-lg border border-line bg-white shadow-quiet">
+      <div className="mx-auto w-full max-w-5xl">
+        <section className="rounded-2xl border border-line bg-white shadow-quiet">
           <div className="border-b border-line p-5">
             <div className="flex items-center gap-3">
               <span className="grid h-11 w-11 place-items-center rounded-xl bg-ink text-white">
@@ -330,8 +268,8 @@ export function CvStudio() {
             </div>
           </div>
 
-          <div className="grid min-h-[420px] content-between gap-5 p-5">
-            <div className="grid gap-4">
+          <div className="grid min-h-[65vh] content-between gap-5 p-5 md:p-7">
+            <div className="grid max-h-[52vh] gap-4 overflow-y-auto pr-1">
               <ChatBubble speaker="CareerPilot">
                 {answers.length === 0
                   ? "I'll build the CV by asking a few focused questions. First, I need the basics."
@@ -420,60 +358,6 @@ export function CvStudio() {
             {message && <p className="text-sm font-bold text-pilot-green">{message}</p>}
             {error && <p className="text-sm font-bold text-pilot-red">{error}</p>}
           </div>
-        </section>
-
-        <section className="grid gap-5">
-          <article className="rounded-lg border border-line bg-white p-6 shadow-quiet">
-            <div className="flex items-center justify-between gap-3">
-              <h3 className="text-lg font-bold">CV Preview</h3>
-              <span className="rounded-full bg-pilot-greenSoft px-3 py-1 text-xs font-black text-pilot-green">{form.recommendedStyle}</span>
-            </div>
-            <div className="mt-5 grid gap-4">
-              <h4 className="text-2xl font-bold">{form.title}</h4>
-              {previewLines.map((line, index) => (
-                <p key={`${line}-${index}`} className="whitespace-pre-line rounded-lg bg-slate-50 p-4 text-sm leading-6 text-slate-700">
-                  {line}
-                </p>
-              ))}
-            </div>
-          </article>
-
-          <article className="rounded-lg border border-line bg-white p-5 shadow-quiet">
-            <div className="mb-4 flex items-center justify-between gap-3">
-              <h3 className="text-lg font-bold">Saved CVs</h3>
-              <button
-                type="button"
-                onClick={() => user && loadCvs(user.id)}
-                className="grid h-10 w-10 place-items-center rounded-lg border border-line text-muted transition hover:border-pilot-green hover:text-pilot-green"
-                aria-label="Refresh saved CVs"
-              >
-                <RefreshCw className="h-4 w-4" aria-hidden="true" />
-              </button>
-            </div>
-
-            {cvs.length === 0 ? (
-              <div className="rounded-lg bg-slate-50 p-4 text-sm font-bold text-muted">No saved CVs yet.</div>
-            ) : (
-              <div className="grid gap-3">
-                {cvs.map((cv) => (
-                  <button
-                    key={cv.id}
-                    type="button"
-                    onClick={() => loadIntoForm(cv)}
-                    className={`flex min-h-16 items-center justify-between gap-3 rounded-lg border px-4 text-left transition ${
-                      selectedCvId === cv.id ? "border-pilot-green bg-pilot-greenSoft" : "border-line bg-white hover:border-pilot-green"
-                    }`}
-                  >
-                    <span>
-                      <strong className="block">{cv.title}</strong>
-                      <span className="text-sm text-muted">Updated {new Date(cv.updated_at).toLocaleDateString()}</span>
-                    </span>
-                    <FileText className="h-4 w-4 text-pilot-green" aria-hidden="true" />
-                  </button>
-                ))}
-              </div>
-            )}
-          </article>
         </section>
       </div>
     </div>
@@ -597,19 +481,4 @@ function formatSkills(value: string, prefix: string) {
   }
 
   return `${prefix}: ${skills.join(", ")}`;
-}
-
-function normalizeContent(value: Json): CvContent & { recommendedStyle: string } {
-  if (value && typeof value === "object" && !Array.isArray(value)) {
-    const record = value as Record<string, Json>;
-    return {
-      summary: typeof record.summary === "string" ? record.summary : defaultCv.summary,
-      experience: typeof record.experience === "string" ? record.experience : defaultCv.experience,
-      skills: typeof record.skills === "string" ? record.skills : defaultCv.skills,
-      education: typeof record.education === "string" ? record.education : defaultCv.education,
-      recommendedStyle: typeof record.recommendedStyle === "string" ? record.recommendedStyle : defaultCv.recommendedStyle
-    };
-  }
-
-  return defaultCv;
 }
