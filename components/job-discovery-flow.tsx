@@ -15,6 +15,7 @@ import {
   SlidersHorizontal,
   Sparkles,
   Target,
+  Upload,
   WandSparkles
 } from "lucide-react";
 import { jobMatches } from "@/lib/mock-data";
@@ -64,12 +65,14 @@ export function JobDiscoveryFlow() {
   const [creditEntries, setCreditEntries] = useState<CreditEntry[]>([]);
   const [selectedCvId, setSelectedCvId] = useState("");
   const [pastedCv, setPastedCv] = useState("");
+  const [uploadedCvName, setUploadedCvName] = useState("");
   const [form, setForm] = useState<SearchState>(defaultSearch);
   const [jobs, setJobs] = useState<ApplyJob[]>(initialJobs);
   const [selectedJobIds, setSelectedJobIds] = useState<string[]>(initialJobs.filter((job) => job.status !== "tracked").map((job) => job.id));
   const [reviewing, setReviewing] = useState(false);
   const [searching, setSearching] = useState(false);
   const [savingJobs, setSavingJobs] = useState(false);
+  const [uploadingCv, setUploadingCv] = useState(false);
   const [tailoringJobId, setTailoringJobId] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -165,6 +168,38 @@ export function JobDiscoveryFlow() {
   function toggleAllReady() {
     const trackableIds = jobs.filter((job) => job.status !== "tracked").map((job) => job.id);
     setSelectedJobIds(trackableIds.every((id) => selectedJobIds.includes(id)) ? [] : trackableIds);
+  }
+
+  async function uploadCvPdf(file: File | null) {
+    if (!file) return;
+
+    setUploadingCv(true);
+    setMessage(null);
+    setError(null);
+
+    try {
+      const formData = new FormData();
+      formData.append("file", file);
+
+      const response = await fetch("/api/cv/extract", {
+        method: "POST",
+        body: formData
+      });
+      const result = (await response.json()) as { text?: string; fileName?: string; error?: string };
+
+      if (!response.ok || !result.text) {
+        throw new Error(result.error || "The PDF CV could not be read.");
+      }
+
+      setSelectedCvId("");
+      setPastedCv(result.text);
+      setUploadedCvName(result.fileName || file.name);
+      setMessage(`${result.fileName || file.name} uploaded and ready for CV-based matching.`);
+    } catch (uploadError) {
+      setError(uploadError instanceof Error ? uploadError.message : "The PDF CV could not be read.");
+    } finally {
+      setUploadingCv(false);
+    }
   }
 
   async function findJobs() {
@@ -328,7 +363,21 @@ export function JobDiscoveryFlow() {
         </div>
 
         <div className="mt-5 grid gap-4 lg:grid-cols-[0.9fr_1.1fr]">
-          <CvInput user={user} cvs={cvs} selectedCvId={selectedCvId} pastedCv={pastedCv} onSelectCv={setSelectedCvId} onPasteCv={setPastedCv} />
+          <CvInput
+            user={user}
+            cvs={cvs}
+            selectedCvId={selectedCvId}
+            pastedCv={pastedCv}
+            uploadedCvName={uploadedCvName}
+            uploadingCv={uploadingCv}
+            onSelectCv={setSelectedCvId}
+            onPasteCv={(value) => {
+              setPastedCv(value);
+              setUploadedCvName("");
+              if (value.trim()) setSelectedCvId("");
+            }}
+            onUploadCv={uploadCvPdf}
+          />
           <SearchDetails form={form} searching={searching} onField={updateField} onSearch={findJobs} />
         </div>
 
@@ -390,7 +439,27 @@ export function JobDiscoveryFlow() {
   );
 }
 
-function CvInput({ user, cvs, selectedCvId, pastedCv, onSelectCv, onPasteCv }: { user: User | null; cvs: CvRecord[]; selectedCvId: string; pastedCv: string; onSelectCv: (value: string) => void; onPasteCv: (value: string) => void }) {
+function CvInput({
+  user,
+  cvs,
+  selectedCvId,
+  pastedCv,
+  uploadedCvName,
+  uploadingCv,
+  onSelectCv,
+  onPasteCv,
+  onUploadCv
+}: {
+  user: User | null;
+  cvs: CvRecord[];
+  selectedCvId: string;
+  pastedCv: string;
+  uploadedCvName: string;
+  uploadingCv: boolean;
+  onSelectCv: (value: string) => void;
+  onPasteCv: (value: string) => void;
+  onUploadCv: (file: File | null) => void;
+}) {
   return (
     <div className="rounded-xl border border-line bg-[#fafaf8] p-4">
       <div className="flex items-center gap-2">
@@ -402,14 +471,29 @@ function CvInput({ user, cvs, selectedCvId, pastedCv, onSelectCv, onPasteCv }: {
           <label className="grid gap-2 text-sm font-semibold text-ink">
             Saved CV
             <select value={selectedCvId} onChange={(event) => onSelectCv(event.target.value)} className="h-12 rounded-lg border border-line bg-white px-3 text-base font-normal outline-none focus:border-pilot-green">
+              {pastedCv.trim() && <option value="">Use uploaded or pasted CV</option>}
               {cvs.map((cv) => <option key={cv.id} value={cv.id}>{cv.title}</option>)}
             </select>
           </label>
         ) : (
           <div className="rounded-lg bg-white p-3 text-sm font-bold text-muted">{user ? "No saved CVs yet. Paste a CV below for this search." : "Sign in to use saved CV history, or paste a CV below."}</div>
         )}
+        <label className="grid cursor-pointer gap-2 text-sm font-semibold text-ink">
+          Upload PDF CV
+          <span className="inline-flex min-h-12 items-center justify-center gap-2 rounded-lg border border-dashed border-line bg-white px-3 text-base font-bold text-ink transition hover:border-pilot-green">
+            <Upload className="h-4 w-4 text-pilot-green" aria-hidden="true" />
+            {uploadingCv ? "Reading PDF" : uploadedCvName || "Choose PDF"}
+          </span>
+          <input
+            type="file"
+            accept="application/pdf,.pdf"
+            disabled={uploadingCv}
+            onChange={(event) => onUploadCv(event.target.files?.[0] ?? null)}
+            className="sr-only"
+          />
+        </label>
         <label className="grid gap-2 text-sm font-semibold text-ink">
-          Paste CV for CV-based recommendations
+          Paste or review CV text
           <textarea rows={6} value={pastedCv} onChange={(event) => onPasteCv(event.target.value)} placeholder="Paste a CV here so each job match reflects the user's actual skills, experience, and target direction." className="rounded-lg border border-line bg-white p-3 text-base font-normal leading-6 outline-none focus:border-pilot-green" />
         </label>
       </div>
@@ -445,8 +529,8 @@ function PremiumMonitoring() {
       <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
         <div>
           <p className="text-sm font-semibold text-[#b8d8d3]">Premium monitoring</p>
-          <h3 className="mt-1 text-2xl font-semibold tracking-normal">Fresh job checks every 4 days</h3>
-          <p className="mt-2 max-w-3xl text-sm leading-6 text-[#d7d7d2]">Paid users can save a search profile and CareerPilot will scan connected job APIs every 4 days, then surface new matches in the tracker and notify them.</p>
+          <h3 className="mt-1 text-2xl font-semibold tracking-normal">Fresh job checks every day</h3>
+          <p className="mt-2 max-w-3xl text-sm leading-6 text-[#d7d7d2]">Premium users can save a search profile and CareerPilot will scan connected job APIs every day, then surface new matches in the tracker and notify them.</p>
         </div>
         <span className="inline-flex min-h-10 shrink-0 items-center justify-center rounded-lg bg-white px-4 text-sm font-bold text-ink">Pro feature</span>
       </div>
