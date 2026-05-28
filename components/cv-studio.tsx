@@ -1,8 +1,8 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
 import type { User } from "@supabase/supabase-js";
-import { ClipboardEdit, FileText, RefreshCw, Save, Sparkles, Upload } from "lucide-react";
+import { Bot, FileText, RefreshCw, Save, Send, Sparkles } from "lucide-react";
 import { supabase } from "@/lib/supabase/client";
 import type { Json } from "@/lib/database.types";
 
@@ -23,16 +23,90 @@ type CvRecord = {
 
 type CvFormState = CvContent & {
   title: string;
+  recommendedStyle: string;
 };
+
+type ChatAnswer = {
+  id: string;
+  question: string;
+  answer: string;
+};
+
+type CvQuestion = {
+  id: string;
+  label: string;
+  prompt: string;
+  placeholder: string;
+  helper?: string;
+  multiline?: boolean;
+};
+
+const cvQuestions: CvQuestion[] = [
+  {
+    id: "fullName",
+    label: "Name",
+    prompt: "What name should appear at the top of the CV?",
+    placeholder: "e.g. Anton Charai"
+  },
+  {
+    id: "targetRole",
+    label: "Target role",
+    prompt: "What job or industry is this CV mainly for?",
+    placeholder: "e.g. finance assistant, barista, software developer, care worker",
+    helper: "This lets CareerPilot choose the right CV style automatically."
+  },
+  {
+    id: "location",
+    label: "Location",
+    prompt: "Where are they based, and are they open to remote or relocation?",
+    placeholder: "e.g. London, open to remote roles"
+  },
+  {
+    id: "contact",
+    label: "Contact",
+    prompt: "What contact details should be included?",
+    placeholder: "Email, phone, LinkedIn, portfolio"
+  },
+  {
+    id: "workHistory",
+    label: "Work history",
+    prompt: "Tell me about their current or past jobs.",
+    placeholder: "Job title, company, dates, and what they did there",
+    multiline: true
+  },
+  {
+    id: "achievements",
+    label: "Achievements",
+    prompt: "What are the strongest achievements, results, or responsibilities?",
+    placeholder: "e.g. handled 80+ customers per shift, reduced admin time, trained 3 team members",
+    helper: "Numbers help, but plain examples are fine.",
+    multiline: true
+  },
+  {
+    id: "skills",
+    label: "Skills",
+    prompt: "What skills, tools, or strengths should the CV show?",
+    placeholder: "e.g. Excel, customer service, cash handling, reporting, teamwork",
+    multiline: true
+  },
+  {
+    id: "education",
+    label: "Education",
+    prompt: "What education, training, certificates, or courses should be included?",
+    placeholder: "School, degree, course, certificate, or relevant training",
+    multiline: true
+  }
+];
 
 const defaultCv: CvFormState = {
   title: "Master CV",
+  recommendedStyle: "Modern ATS-friendly",
   summary:
-    "Commercial operator with experience improving process quality, stakeholder communication, and team delivery.",
+    "Reliable professional with practical experience, strong communication skills, and a clear focus on delivering quality work.",
   experience:
-    "Role | Company | Dates\n- Improved team workflows and reporting cadence.\n- Coordinated cross-functional work across operations, customers, and leadership.\n- Tracked outcomes and turned feedback into measurable improvements.",
-  skills: "Operations, customer success, stakeholder management, reporting, process improvement, SaaS tools",
-  education: "Degree, certifications, or relevant training"
+    "Most recent role | Company | Dates\n- Add responsibilities and achievements here.\n- Focus on the work most relevant to the target role.",
+  skills: "Communication, organisation, teamwork, problem solving",
+  education: "Education, certifications, or relevant training"
 };
 
 export function CvStudio() {
@@ -44,7 +118,13 @@ export function CvStudio() {
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [starter, setStarter] = useState<"profile" | "scratch" | "paste">("profile");
+  const [answers, setAnswers] = useState<ChatAnswer[]>([]);
+  const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
+  const [draftAnswer, setDraftAnswer] = useState("");
+
+  const currentQuestion = cvQuestions[currentQuestionIndex];
+  const complete = currentQuestionIndex >= cvQuestions.length;
+  const progress = Math.round((answers.length / cvQuestions.length) * 100);
 
   const previewLines = useMemo(
     () => [
@@ -113,8 +193,44 @@ export function CvStudio() {
     }
   }
 
-  function updateField(field: keyof CvFormState, value: string) {
-    setForm((current) => ({ ...current, [field]: value }));
+  function submitAnswer() {
+    const value = draftAnswer.trim();
+    if (!currentQuestion || !value) {
+      return;
+    }
+
+    const nextAnswers = [
+      ...answers,
+      {
+        id: currentQuestion.id,
+        question: currentQuestion.prompt,
+        answer: value
+      }
+    ];
+
+    setAnswers(nextAnswers);
+    setDraftAnswer("");
+    setMessage(null);
+    setError(null);
+
+    if (currentQuestionIndex + 1 === cvQuestions.length) {
+      const generated = generateCv(nextAnswers);
+      setSelectedCvId(null);
+      setForm(generated);
+      setMessage("CV draft generated. Review it, then save it to the account.");
+    }
+
+    setCurrentQuestionIndex((current) => current + 1);
+  }
+
+  function restartInterview() {
+    setAnswers([]);
+    setCurrentQuestionIndex(0);
+    setDraftAnswer("");
+    setSelectedCvId(null);
+    setForm(defaultCv);
+    setMessage("Started a new CV interview.");
+    setError(null);
   }
 
   function loadIntoForm(cv: CvRecord) {
@@ -122,45 +238,13 @@ export function CvStudio() {
     setSelectedCvId(cv.id);
     setForm({
       title: cv.title,
+      recommendedStyle: content.recommendedStyle,
       summary: content.summary,
       experience: content.experience,
       skills: content.skills,
       education: content.education
     });
     setMessage(`Loaded ${cv.title}.`);
-    setError(null);
-  }
-
-  async function buildFromProfile() {
-    if (!user) {
-      setError("Sign in with Google before using your profile.");
-      return;
-    }
-
-    const { data, error: profileError } = await supabase
-      .from("profiles")
-      .select("full_name,headline,target_roles,career_summary,seniority")
-      .eq("user_id", user.id)
-      .maybeSingle();
-
-    if (profileError) {
-      setError(profileError.message);
-      return;
-    }
-
-    if (!data) {
-      setError("Save your career profile first, then build the CV from it.");
-      return;
-    }
-
-    setForm((current) => ({
-      ...current,
-      title: data.full_name ? `${data.full_name} Master CV` : current.title,
-      summary: data.career_summary ?? current.summary,
-      skills: data.target_roles.length ? data.target_roles.join(", ") : current.skills,
-      experience: `${data.headline ?? data.seniority ?? "Professional experience"}\n- Add your most relevant wins here.\n- Focus on measurable outcomes, tools used, and commercial impact.`
-    }));
-    setMessage("Profile details pulled into the CV draft.");
     setError(null);
   }
 
@@ -174,11 +258,12 @@ export function CvStudio() {
     setError(null);
     setMessage(null);
 
-    const content: CvContent = {
+    const content: CvContent & { recommendedStyle: string } = {
       summary: form.summary,
       experience: form.experience,
       skills: form.skills,
-      education: form.education
+      education: form.education,
+      recommendedStyle: form.recommendedStyle
     };
 
     const cvFields = {
@@ -219,88 +304,119 @@ export function CvStudio() {
   return (
     <div className="grid gap-5">
       <section className="rounded-2xl border border-line bg-white p-5">
-        <div>
-          <p className="text-sm font-semibold text-muted">Service setup</p>
-          <h3 className="mt-1 text-2xl font-semibold tracking-normal">Professional CV Studio</h3>
-          <p className="mt-2 max-w-2xl text-sm leading-6 text-muted">
-            Choose how to start, then refine and save the master CV used for job matching and tailored applications.
-          </p>
-        </div>
-
-        <div className="mt-5 grid gap-3 md:grid-cols-3">
-          <StarterCard
-            active={starter === "profile"}
-            icon={Sparkles}
-            title="Build from profile"
-            detail="Use saved career details to prepare the first draft."
-            onClick={() => {
-              setStarter("profile");
-              buildFromProfile();
-            }}
-          />
-          <StarterCard
-            active={starter === "scratch"}
-            icon={ClipboardEdit}
-            title="Build from scratch"
-            detail="Start with a clean professional CV structure."
-            onClick={() => {
-              setStarter("scratch");
-              setSelectedCvId(null);
-              setForm(defaultCv);
-              setMessage("Clean CV structure loaded.");
-              setError(null);
-            }}
-          />
-          <StarterCard
-            active={starter === "paste"}
-            icon={Upload}
-            title="Improve existing CV"
-            detail="Paste an existing CV into the editor and refine it."
-            onClick={() => {
-              setStarter("paste");
-              setMessage("Paste your existing CV into the sections below.");
-              setError(null);
-            }}
-          />
+        <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+          <div>
+            <p className="text-sm font-semibold text-muted">AI CV interview</p>
+            <h3 className="mt-1 text-2xl font-semibold tracking-normal">Build the perfect CV</h3>
+            <p className="mt-2 max-w-2xl text-sm leading-6 text-muted">
+              CareerPilot asks one question at a time, chooses the right style for the target job, then prepares a master CV for review.
+            </p>
+          </div>
+          <div className="rounded-full border border-line px-4 py-2 text-sm font-bold text-muted">{progress}% complete</div>
         </div>
       </section>
 
       <div className="grid gap-5 xl:grid-cols-[0.95fr_1.05fr]">
-        <section className="rounded-lg border border-line bg-white p-5 shadow-quiet">
-          <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-            <div>
-              <h3 className="text-lg font-bold">Master CV</h3>
-              <p className="mt-1 text-sm leading-6 text-muted">Create the core CV that job-specific versions will use.</p>
+        <section className="rounded-lg border border-line bg-white shadow-quiet">
+          <div className="border-b border-line p-5">
+            <div className="flex items-center gap-3">
+              <span className="grid h-11 w-11 place-items-center rounded-xl bg-ink text-white">
+                <Bot className="h-5 w-5" aria-hidden="true" />
+              </span>
+              <div>
+                <h3 className="font-bold">CareerPilot CV Assistant</h3>
+                <p className="text-sm text-muted">One answer at a time. No long forms.</p>
+              </div>
             </div>
-            <button
-              type="button"
-              onClick={buildFromProfile}
-              className="inline-flex min-h-10 items-center justify-center gap-2 rounded-lg border border-line bg-white px-3 text-sm font-bold transition hover:border-pilot-green"
-            >
-              <Sparkles className="h-4 w-4" aria-hidden="true" />
-              Use profile
-            </button>
           </div>
 
-          <div className="mt-5 grid gap-4">
-            <Field label="CV title" value={form.title} onChange={(value) => updateField("title", value)} />
-            <TextArea label="Professional summary" value={form.summary} onChange={(value) => updateField("summary", value)} />
-            <TextArea label="Experience" value={form.experience} rows={8} onChange={(value) => updateField("experience", value)} />
-            <TextArea label="Skills" value={form.skills} onChange={(value) => updateField("skills", value)} />
-            <TextArea label="Education" value={form.education} onChange={(value) => updateField("education", value)} />
-          </div>
+          <div className="grid min-h-[420px] content-between gap-5 p-5">
+            <div className="grid gap-4">
+              <ChatBubble speaker="CareerPilot">
+                {answers.length === 0
+                  ? "I'll build the CV by asking a few focused questions. First, I need the basics."
+                  : "Thanks. I've added that to the CV brief."}
+              </ChatBubble>
 
-          <div className="mt-5 flex flex-col gap-3 sm:flex-row sm:items-center">
-            <button
-              type="button"
-              onClick={saveCv}
-              disabled={saving}
-              className="inline-flex min-h-11 items-center justify-center gap-2 rounded-lg bg-ink px-4 font-bold text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-60"
-            >
-              <Save className="h-4 w-4" aria-hidden="true" />
-              {saving ? "Saving" : "Save CV"}
-            </button>
-            {!user && <p className="text-sm font-bold text-muted">Sign in with Google to save CVs.</p>}
+              {answers.map((answer) => (
+                <div key={answer.id} className="grid gap-3">
+                  <ChatBubble speaker="CareerPilot">{answer.question}</ChatBubble>
+                  <ChatBubble speaker="You" user>
+                    {answer.answer}
+                  </ChatBubble>
+                </div>
+              ))}
+
+              {!complete ? (
+                <ChatBubble speaker="CareerPilot">
+                  <span className="block font-semibold text-ink">{currentQuestion.label}</span>
+                  <span className="mt-1 block">{currentQuestion.prompt}</span>
+                  {currentQuestion.helper && <span className="mt-2 block text-xs font-semibold text-muted">{currentQuestion.helper}</span>}
+                </ChatBubble>
+              ) : (
+                <ChatBubble speaker="CareerPilot">
+                  The first CV draft is ready. I chose <strong>{form.recommendedStyle}</strong> based on the target role.
+                </ChatBubble>
+              )}
+            </div>
+
+            {!complete ? (
+              <div className="rounded-xl border border-line bg-[#fafaf8] p-3">
+                {currentQuestion.multiline ? (
+                  <textarea
+                    rows={5}
+                    value={draftAnswer}
+                    onChange={(event) => setDraftAnswer(event.target.value)}
+                    placeholder={currentQuestion.placeholder}
+                    className="w-full resize-none rounded-lg border border-line bg-white p-3 text-sm leading-6 outline-none focus:border-pilot-green"
+                  />
+                ) : (
+                  <input
+                    value={draftAnswer}
+                    onChange={(event) => setDraftAnswer(event.target.value)}
+                    onKeyDown={(event) => {
+                      if (event.key === "Enter") {
+                        submitAnswer();
+                      }
+                    }}
+                    placeholder={currentQuestion.placeholder}
+                    className="h-12 w-full rounded-lg border border-line bg-white px-3 text-sm outline-none focus:border-pilot-green"
+                  />
+                )}
+                <div className="mt-3 flex justify-end">
+                  <button
+                    type="button"
+                    onClick={submitAnswer}
+                    disabled={!draftAnswer.trim()}
+                    className="inline-flex min-h-11 items-center justify-center gap-2 rounded-lg bg-ink px-4 font-bold text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-50"
+                  >
+                    Answer
+                    <Send className="h-4 w-4" aria-hidden="true" />
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+                <button
+                  type="button"
+                  onClick={saveCv}
+                  disabled={saving}
+                  className="inline-flex min-h-11 items-center justify-center gap-2 rounded-lg bg-ink px-4 font-bold text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-60"
+                >
+                  <Save className="h-4 w-4" aria-hidden="true" />
+                  {saving ? "Saving" : "Save CV"}
+                </button>
+                <button
+                  type="button"
+                  onClick={restartInterview}
+                  className="inline-flex min-h-11 items-center justify-center rounded-lg border border-line bg-white px-4 font-bold transition hover:border-pilot-green"
+                >
+                  Start again
+                </button>
+                {!user && <p className="text-sm font-bold text-muted">Sign in with Google to save CVs.</p>}
+              </div>
+            )}
+
             {message && <p className="text-sm font-bold text-pilot-green">{message}</p>}
             {error && <p className="text-sm font-bold text-pilot-red">{error}</p>}
           </div>
@@ -309,10 +425,8 @@ export function CvStudio() {
         <section className="grid gap-5">
           <article className="rounded-lg border border-line bg-white p-6 shadow-quiet">
             <div className="flex items-center justify-between gap-3">
-              <h3 className="text-lg font-bold">Preview</h3>
-              <span className="rounded-full bg-pilot-greenSoft px-3 py-1 text-xs font-black text-pilot-green">
-                ATS-friendly
-              </span>
+              <h3 className="text-lg font-bold">CV Preview</h3>
+              <span className="rounded-full bg-pilot-greenSoft px-3 py-1 text-xs font-black text-pilot-green">{form.recommendedStyle}</span>
             </div>
             <div className="mt-5 grid gap-4">
               <h4 className="text-2xl font-bold">{form.title}</h4>
@@ -366,89 +480,134 @@ export function CvStudio() {
   );
 }
 
-function StarterCard({
-  active,
-  icon: Icon,
-  title,
-  detail,
-  onClick
+function ChatBubble({
+  speaker,
+  user = false,
+  children
 }: {
-  active: boolean;
-  icon: typeof Sparkles;
-  title: string;
-  detail: string;
-  onClick: () => void;
+  speaker: string;
+  user?: boolean;
+  children: ReactNode;
 }) {
   return (
-    <button
-      type="button"
-      onClick={onClick}
-      className={`rounded-2xl border p-4 text-left transition ${
-        active ? "border-ink bg-[#fafaf8]" : "border-line bg-white hover:border-[#cfcfca]"
-      }`}
-    >
-      <span className={`grid h-10 w-10 place-items-center rounded-xl ${active ? "bg-ink text-white" : "bg-[#f3f3ef] text-ink"}`}>
-        <Icon className="h-5 w-5" aria-hidden="true" />
-      </span>
-      <span className="mt-4 block font-semibold">{title}</span>
-      <span className="mt-2 block text-sm leading-6 text-muted">{detail}</span>
-    </button>
+    <div className={`flex ${user ? "justify-end" : "justify-start"}`}>
+      <div className={`max-w-[88%] rounded-2xl px-4 py-3 ${user ? "bg-ink text-white" : "bg-[#f3f3ef] text-slate-700"}`}>
+        <p className={`mb-1 text-xs font-black uppercase tracking-[0.08em] ${user ? "text-white/65" : "text-muted"}`}>{speaker}</p>
+        <div className="whitespace-pre-line text-sm leading-6">{children}</div>
+      </div>
+    </div>
   );
 }
 
-function Field({
-  label,
-  value,
-  onChange
-}: {
-  label: string;
-  value: string;
-  onChange: (value: string) => void;
-}) {
-  return (
-    <label className="grid gap-2 font-bold text-slate-800">
-      {label}
-      <input
-        className="h-12 rounded-lg border border-line bg-white px-3 text-base font-normal outline-none focus:border-pilot-green"
-        value={value}
-        onChange={(event) => onChange(event.target.value)}
-      />
-    </label>
-  );
+function generateCv(answerList: ChatAnswer[]): CvFormState {
+  const answerMap = Object.fromEntries(answerList.map((answer) => [answer.id, answer.answer]));
+  const targetRole = answerMap.targetRole ?? "target role";
+  const fullName = answerMap.fullName ?? "Master CV";
+  const style = chooseCvStyle(targetRole);
+  const achievements = answerMap.achievements ?? "Delivered reliable work and supported team goals.";
+  const workHistory = answerMap.workHistory ?? "Professional experience";
+  const skills = answerMap.skills ?? "Communication, organisation, teamwork";
+  const education = answerMap.education ?? "Relevant education and training";
+  const location = answerMap.location ? ` Based in ${answerMap.location}.` : "";
+
+  return {
+    title: `${fullName} Master CV`,
+    recommendedStyle: style.name,
+    summary: `${style.summaryLead} targeting ${targetRole}.${location} Brings ${style.strengthFrame} with evidence across ${summariseSkills(skills)}.`,
+    experience: `${workHistory}\n- ${style.bulletLead} ${cleanSentence(achievements)}\n- Demonstrated reliability, communication, and consistent follow-through in role-relevant responsibilities.\n- Ready to present experience clearly for ${targetRole} opportunities.`,
+    skills: formatSkills(skills, style.skillFrame),
+    education
+  };
 }
 
-function TextArea({
-  label,
-  value,
-  rows = 4,
-  onChange
-}: {
-  label: string;
-  value: string;
-  rows?: number;
-  onChange: (value: string) => void;
-}) {
-  return (
-    <label className="grid gap-2 font-bold text-slate-800">
-      {label}
-      <textarea
-        rows={rows}
-        className="rounded-lg border border-line bg-white p-3 text-base font-normal leading-6 outline-none focus:border-pilot-green"
-        value={value}
-        onChange={(event) => onChange(event.target.value)}
-      />
-    </label>
-  );
+function chooseCvStyle(targetRole: string) {
+  const target = targetRole.toLowerCase();
+
+  if (/(finance|bank|account|audit|law|legal|consult|analyst|corporate|insurance)/.test(target)) {
+    return {
+      name: "Professional corporate CV",
+      summaryLead: "Polished and commercially aware candidate",
+      strengthFrame: "professional judgement, accuracy, stakeholder communication, and structured problem solving",
+      skillFrame: "Core strengths",
+      bulletLead: "Built credibility through accurate, well-organised work:"
+    };
+  }
+
+  if (/(barista|coffee|hospitality|restaurant|retail|customer|shop|sales assistant)/.test(target)) {
+    return {
+      name: "Friendly customer-facing CV",
+      summaryLead: "Warm, reliable, customer-focused candidate",
+      strengthFrame: "service quality, teamwork, attention to detail, and calm communication",
+      skillFrame: "Customer-facing strengths",
+      bulletLead: "Created a positive customer experience while staying organised:"
+    };
+  }
+
+  if (/(software|developer|engineer|data|product|designer|technical|it|cyber)/.test(target)) {
+    return {
+      name: "Concise technical CV",
+      summaryLead: "Practical, skills-led candidate",
+      strengthFrame: "technical delivery, problem solving, collaboration, and measurable project impact",
+      skillFrame: "Technical and delivery skills",
+      bulletLead: "Applied practical skills to improve delivery:"
+    };
+  }
+
+  if (/(care|health|nurse|support worker|education|teacher|childcare)/.test(target)) {
+    return {
+      name: "Trust-focused care CV",
+      summaryLead: "Responsible and people-focused candidate",
+      strengthFrame: "trust, patience, communication, safeguarding awareness, and dependable support",
+      skillFrame: "Care and people skills",
+      bulletLead: "Supported people with care, consistency, and responsibility:"
+    };
+  }
+
+  return {
+    name: "Modern ATS-friendly CV",
+    summaryLead: "Reliable and adaptable candidate",
+    strengthFrame: "communication, organisation, accountability, and role-relevant practical experience",
+    skillFrame: "Relevant skills",
+    bulletLead: "Contributed to team outcomes through dependable work:"
+  };
 }
 
-function normalizeContent(value: Json): CvContent {
+function cleanSentence(value: string) {
+  const trimmed = value.trim();
+  return trimmed.endsWith(".") ? trimmed : `${trimmed}.`;
+}
+
+function summariseSkills(value: string) {
+  return value
+    .split(/,|\n/)
+    .map((skill) => skill.trim())
+    .filter(Boolean)
+    .slice(0, 4)
+    .join(", ");
+}
+
+function formatSkills(value: string, prefix: string) {
+  const skills = value
+    .split(/,|\n/)
+    .map((skill) => skill.trim())
+    .filter(Boolean);
+
+  if (!skills.length) {
+    return prefix;
+  }
+
+  return `${prefix}: ${skills.join(", ")}`;
+}
+
+function normalizeContent(value: Json): CvContent & { recommendedStyle: string } {
   if (value && typeof value === "object" && !Array.isArray(value)) {
     const record = value as Record<string, Json>;
     return {
       summary: typeof record.summary === "string" ? record.summary : defaultCv.summary,
       experience: typeof record.experience === "string" ? record.experience : defaultCv.experience,
       skills: typeof record.skills === "string" ? record.skills : defaultCv.skills,
-      education: typeof record.education === "string" ? record.education : defaultCv.education
+      education: typeof record.education === "string" ? record.education : defaultCv.education,
+      recommendedStyle: typeof record.recommendedStyle === "string" ? record.recommendedStyle : defaultCv.recommendedStyle
     };
   }
 
