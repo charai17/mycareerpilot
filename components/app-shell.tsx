@@ -13,6 +13,8 @@ import {
   LockKeyhole,
   Sparkles
 } from "lucide-react";
+import { AuthStatus } from "@/components/auth-status";
+import { ProfileForm } from "@/components/profile-form";
 import {
   applicationSteps,
   jobMatches,
@@ -107,7 +109,7 @@ function Hero() {
       </div>
       <div className="flex shrink-0 flex-col gap-2 sm:flex-row">
         <Button variant="secondary">Preview profile</Button>
-        <Button>Connect Google</Button>
+        <AuthStatus />
       </div>
     </header>
   );
@@ -162,29 +164,12 @@ function ProfileView() {
   return (
     <section aria-labelledby="profile-title">
       <SectionHeading eyebrow="Onboarding" title="Career profile">
-        <Button>Save profile</Button>
+        <span className="rounded-full border border-line bg-white px-3 py-1 text-sm font-bold text-muted">
+          Supabase-backed
+        </span>
       </SectionHeading>
 
-      <div className="grid max-w-5xl gap-4 md:grid-cols-2">
-        <Field label="Target roles" defaultValue="Operations, product, customer success" />
-        <Field label="Regions" defaultValue="United Kingdom, Europe, Remote global" />
-        <label className="grid gap-2 font-bold text-slate-800">
-          Seniority
-          <select className="h-12 rounded-lg border border-line bg-white px-3 text-base font-normal outline-none focus:border-pilot-green">
-            <option>Mid to senior</option>
-            <option>Entry level</option>
-            <option>Leadership</option>
-          </select>
-        </label>
-        <Field label="Salary range" defaultValue="GBP 55k+" />
-        <label className="grid gap-2 font-bold text-slate-800 md:col-span-2">
-          Career summary
-          <textarea
-            className="min-h-36 rounded-lg border border-line bg-white p-3 text-base font-normal leading-6 outline-none focus:border-pilot-green"
-            defaultValue="Experienced operator with a track record improving team processes, client outcomes, and commercial reporting."
-          />
-        </label>
-      </div>
+      <ProfileForm />
     </section>
   );
 }
@@ -410,18 +395,6 @@ function JobRow({ job }: { job: JobMatch }) {
         {job.score}%
       </span>
     </article>
-  );
-}
-
-function Field({ label, defaultValue }: { label: string; defaultValue: string }) {
-  return (
-    <label className="grid gap-2 font-bold text-slate-800">
-      {label}
-      <input
-        className="h-12 rounded-lg border border-line bg-white px-3 text-base font-normal outline-none focus:border-pilot-green"
-        defaultValue={defaultValue}
-      />
-    </label>
   );
 }
 
