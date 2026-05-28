@@ -72,7 +72,7 @@ create table if not exists public.billing_profiles (
   stripe_customer_id text,
   stripe_subscription_id text,
   tailored_cv_credits int not null default 3 check (tailored_cv_credits >= 0),
-  job_scan_interval_days int not null default 4 check (job_scan_interval_days > 0),
+  job_scan_interval_days int not null default 1 check (job_scan_interval_days > 0),
   current_period_end timestamptz,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now(),
