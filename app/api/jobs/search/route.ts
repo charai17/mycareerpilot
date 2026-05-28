@@ -85,10 +85,11 @@ export async function POST(request: Request) {
     const role = cleanInput(body.role) || "customer success";
     const regions = cleanInput(body.regions) || "United Kingdom";
     const workingStyle = cleanInput(body.workingStyle);
+    const salaryMinimum = parseSalaryMinimum(cleanInput(body.salary));
     const cvProfile = buildCvProfile(cleanInput(body.cvText));
 
     const [adzunaJobs, remotiveJobs] = await Promise.all([
-      fetchAdzunaJobs({ role, regions, limit }),
+      fetchAdzunaJobs({ role, regions, salaryMinimum, limit }),
       fetchRemotiveJobs({ role, workingStyle, limit })
     ]);
 
@@ -113,10 +114,12 @@ export async function POST(request: Request) {
 async function fetchAdzunaJobs({
   role,
   regions,
+  salaryMinimum,
   limit
 }: {
   role: string;
   regions: string;
+  salaryMinimum?: number;
   limit: number;
 }): Promise<JobResult[]> {
   const appId = process.env.ADZUNA_APP_ID;
@@ -137,6 +140,10 @@ async function fetchAdzunaJobs({
 
   if (where) {
     url.searchParams.set("where", where);
+  }
+
+  if (salaryMinimum) {
+    url.searchParams.set("salary_min", String(salaryMinimum));
   }
 
   const response = await fetch(url, { next: { revalidate: 900 } });
@@ -383,10 +390,20 @@ function resolveAdzunaCountry(regions: string) {
 }
 
 function resolveAdzunaWhere(regions: string) {
+  const broadLocations = ["any", "africa", "asia", "europe", "north america", "oceania", "south america", "remote", "any work mode", "hybrid", "on-site", "flexible"];
   return regions
     .split(",")
     .map((region) => region.trim())
-    .find((region) => region && !region.toLowerCase().includes("remote") && !region.toLowerCase().includes("europe"));
+    .find((region) => region && !broadLocations.includes(region.toLowerCase()));
+}
+
+function parseSalaryMinimum(salary: string) {
+  if (!salary || salary.toLowerCase() === "any" || salary.toLowerCase() === "entry level") {
+    return undefined;
+  }
+
+  const match = salary.match(/(\d+)\s*k/i);
+  return match ? Number(match[1]) * 1000 : undefined;
 }
 
 function formatSalary(min?: number, max?: number) {
