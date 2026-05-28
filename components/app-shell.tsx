@@ -161,7 +161,35 @@ function DashboardView({ onNavigate }: { onNavigate: (view: ViewId) => void }) {
           </ol>
         </Panel>
       </div>
+
+      <WhyCareerPilot />
     </section>
+  );
+}
+
+function WhyCareerPilot() {
+  return (
+    <section className="mt-6 rounded-2xl border border-line bg-white p-6 shadow-quiet">
+      <p className="text-sm font-semibold text-muted">Why use mycareerpilot?</p>
+      <h2 className="mt-2 text-2xl font-semibold tracking-normal">A clearer way to move through the job search.</h2>
+      <p className="mt-3 max-w-3xl text-sm leading-6 text-muted">
+        mycareerpilot helps turn a scattered job search into a focused workflow. It reads the user&apos;s CV, finds roles that match their experience, explains why each job fits, prepares stronger CVs, and keeps applications organised from discovery to interview.
+      </p>
+      <div className="mt-5 grid gap-3 sm:grid-cols-3">
+        <MiniBenefit title="Better matches" detail="Recommendations are shaped around the user&apos;s CV, sector, location, and salary preferences." />
+        <MiniBenefit title="Stronger CVs" detail="Users can build a master CV and generate tailored versions for the jobs that matter most." />
+        <MiniBenefit title="Less admin" detail="Saved jobs, prepared CVs, apply links, and application status stay in one calm dashboard." />
+      </div>
+    </section>
+  );
+}
+
+function MiniBenefit({ title, detail }: { title: string; detail: string }) {
+  return (
+    <article className="rounded-xl border border-line bg-[#fafaf8] p-4">
+      <h3 className="text-sm font-black">{title}</h3>
+      <p className="mt-2 text-sm leading-6 text-muted">{detail}</p>
+    </article>
   );
 }
 
