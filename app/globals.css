@@ -17,10 +17,8 @@ html {
 body {
   min-height: 100vh;
   margin: 0;
-  background:
-    radial-gradient(circle at 50% -20%, rgba(31, 122, 114, 0.08), transparent 34rem),
-    #f7f5f0;
-  color: #20211f;
+  background: #fbfbfa;
+  color: #1f1f1f;
 }
 
 button,
