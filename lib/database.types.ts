@@ -168,6 +168,67 @@ export type Database = {
         };
         Relationships: [];
       };
+      billing_profiles: {
+        Row: {
+          id: string;
+          user_id: string;
+          plan: "trial" | "pro" | "premium";
+          status: "trialing" | "active" | "past_due" | "cancelled";
+          stripe_customer_id: string | null;
+          stripe_subscription_id: string | null;
+          tailored_cv_credits: number;
+          job_scan_interval_days: number;
+          current_period_end: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          user_id: string;
+          plan?: "trial" | "pro" | "premium";
+          status?: "trialing" | "active" | "past_due" | "cancelled";
+          stripe_customer_id?: string | null;
+          stripe_subscription_id?: string | null;
+          tailored_cv_credits?: number;
+          job_scan_interval_days?: number;
+          current_period_end?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          plan?: "trial" | "pro" | "premium";
+          status?: "trialing" | "active" | "past_due" | "cancelled";
+          stripe_customer_id?: string | null;
+          stripe_subscription_id?: string | null;
+          tailored_cv_credits?: number;
+          job_scan_interval_days?: number;
+          current_period_end?: string | null;
+          updated_at?: string;
+        };
+        Relationships: [];
+      };
+      credit_ledger: {
+        Row: {
+          id: string;
+          user_id: string;
+          credit_type: "tailored_cv";
+          amount: number;
+          reason: string;
+          metadata: Json;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          user_id: string;
+          credit_type: "tailored_cv";
+          amount: number;
+          reason: string;
+          metadata?: Json;
+          created_at?: string;
+        };
+        Update: never;
+        Relationships: [];
+      };
       audit_logs: {
         Row: {
           id: string;
