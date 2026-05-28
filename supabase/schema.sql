@@ -64,6 +64,31 @@ create table if not exists public.application_drafts (
   updated_at timestamptz not null default now()
 );
 
+create table if not exists public.billing_profiles (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null references auth.users(id) on delete cascade,
+  plan text not null default 'trial' check (plan in ('trial', 'pro', 'premium')),
+  status text not null default 'trialing' check (status in ('trialing', 'active', 'past_due', 'cancelled')),
+  stripe_customer_id text,
+  stripe_subscription_id text,
+  tailored_cv_credits int not null default 3 check (tailored_cv_credits >= 0),
+  job_scan_interval_days int not null default 4 check (job_scan_interval_days > 0),
+  current_period_end timestamptz,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now(),
+  unique (user_id)
+);
+
+create table if not exists public.credit_ledger (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null references auth.users(id) on delete cascade,
+  credit_type text not null check (credit_type in ('tailored_cv')),
+  amount int not null,
+  reason text not null,
+  metadata jsonb not null default '{}'::jsonb,
+  created_at timestamptz not null default now()
+);
+
 create table if not exists public.audit_logs (
   id uuid primary key default gen_random_uuid(),
   user_id uuid not null references auth.users(id) on delete cascade,
@@ -78,7 +103,19 @@ alter table public.cvs enable row level security;
 alter table public.jobs enable row level security;
 alter table public.applications enable row level security;
 alter table public.application_drafts enable row level security;
+alter table public.billing_profiles enable row level security;
+alter table public.credit_ledger enable row level security;
 alter table public.audit_logs enable row level security;
+
+drop policy if exists "Users can manage own profile" on public.profiles;
+drop policy if exists "Users can manage own cvs" on public.cvs;
+drop policy if exists "Users can manage own jobs" on public.jobs;
+drop policy if exists "Users can manage own applications" on public.applications;
+drop policy if exists "Users can manage own drafts" on public.application_drafts;
+drop policy if exists "Users can manage own billing profile" on public.billing_profiles;
+drop policy if exists "Users can manage own credits" on public.credit_ledger;
+drop policy if exists "Users can read own audit logs" on public.audit_logs;
+drop policy if exists "Users can create own audit logs" on public.audit_logs;
 
 create policy "Users can manage own profile" on public.profiles
   for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
@@ -93,6 +130,12 @@ create policy "Users can manage own applications" on public.applications
   for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
 
 create policy "Users can manage own drafts" on public.application_drafts
+  for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
+
+create policy "Users can manage own billing profile" on public.billing_profiles
+  for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
+
+create policy "Users can manage own credits" on public.credit_ledger
   for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
 
 create policy "Users can read own audit logs" on public.audit_logs
