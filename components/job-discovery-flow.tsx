@@ -4,13 +4,14 @@ import { useEffect, useMemo, useState } from "react";
 import type { User } from "@supabase/supabase-js";
 import {
   AlertTriangle,
+  BookmarkCheck,
   CheckCircle2,
+  CreditCard,
   ExternalLink,
   FileText,
   Globe2,
   Lightbulb,
   MapPin,
-  BookmarkCheck,
   SlidersHorizontal,
   Sparkles,
   Target,
@@ -20,51 +21,14 @@ import { jobMatches } from "@/lib/mock-data";
 import { supabase } from "@/lib/supabase/client";
 import type { Json } from "@/lib/database.types";
 
-type CvRecord = {
-  id: string;
-  title: string;
-  content: Json;
-  updated_at: string;
-};
-
-type TailoredCv = {
-  title: string;
-  recommendedStyle: string;
-  summary: string;
-  experience: string;
-  skills: string;
-  education: string;
-};
-
-type SearchState = {
-  role: string;
-  regions: string;
-  workingStyle: string;
-  salary: string;
-  numberOfJobs: string;
-};
-
+type CvRecord = { id: string; title: string; content: Json; updated_at: string };
+type BillingProfile = { tailored_cv_credits: number };
+type CreditEntry = { amount: number };
+type TailoredCv = { title: string; recommendedStyle: string; summary: string; experience: string; skills: string; education: string };
+type SearchState = { role: string; regions: string; workingStyle: string; salary: string; numberOfJobs: string };
 type JobStatus = "match" | "tailored" | "external" | "tracked";
-
-type ApplyJob = {
-  id: string;
-  title: string;
-  company: string;
-  location: string;
-  salary: string;
-  source: string;
-  score: number;
-  status: JobStatus;
-  url: string;
-  insight?: JobInsight;
-};
-
-type JobInsight = {
-  fit: string[];
-  missing: string[];
-  cvAngle: string;
-  checklist: string[];
-};
+type ApplyJob = { id: string; title: string; company: string; location: string; salary: string; source: string; score: number; status: JobStatus; url: string; insight?: JobInsight };
+type JobInsight = { fit: string[]; missing: string[]; cvAngle: string; checklist: string[] };
 
 const defaultSearch: SearchState = {
   role: "Operations Manager, Customer Success Lead",
@@ -96,6 +60,8 @@ const statusCopy: Record<JobStatus, { label: string; className: string }> = {
 export function JobDiscoveryFlow() {
   const [user, setUser] = useState<User | null>(null);
   const [cvs, setCvs] = useState<CvRecord[]>([]);
+  const [billingProfile, setBillingProfile] = useState<BillingProfile | null>(null);
+  const [creditEntries, setCreditEntries] = useState<CreditEntry[]>([]);
   const [selectedCvId, setSelectedCvId] = useState("");
   const [pastedCv, setPastedCv] = useState("");
   const [form, setForm] = useState<SearchState>(defaultSearch);
@@ -108,27 +74,23 @@ export function JobDiscoveryFlow() {
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
-  const selectedJobs = useMemo(
-    () => jobs.filter((job) => selectedJobIds.includes(job.id)),
-    [jobs, selectedJobIds]
-  );
+  const selectedJobs = useMemo(() => jobs.filter((job) => selectedJobIds.includes(job.id)), [jobs, selectedJobIds]);
   const trackableSelectedJobs = selectedJobs.filter((job) => job.status !== "tracked");
   const selectedCv = cvs.find((cv) => cv.id === selectedCvId);
   const cvText = selectedCv ? stringifyCvContent(selectedCv.content) : pastedCv.trim();
   const canPrepare = Boolean(selectedCvId || pastedCv.trim()) && trackableSelectedJobs.length > 0;
+  const tailoredCvCredits = (billingProfile?.tailored_cv_credits ?? 0) + creditEntries.reduce((total, entry) => total + entry.amount, 0);
+  const canUseTailoredCv = tailoredCvCredits > 0;
 
   useEffect(() => {
     let mounted = true;
 
     async function load() {
       const { data } = await supabase.auth.getUser();
-      if (!mounted) {
-        return;
-      }
-
+      if (!mounted) return;
       setUser(data.user);
       if (data.user) {
-        await loadCvs(data.user.id);
+        await Promise.all([loadCvs(data.user.id), loadBilling(data.user.id)]);
       }
     }
 
@@ -139,9 +101,11 @@ export function JobDiscoveryFlow() {
     } = supabase.auth.onAuthStateChange(async (_event, session) => {
       setUser(session?.user ?? null);
       if (session?.user) {
-        await loadCvs(session.user.id);
+        await Promise.all([loadCvs(session.user.id), loadBilling(session.user.id)]);
       } else {
         setCvs([]);
+        setBillingProfile(null);
+        setCreditEntries([]);
         setSelectedCvId("");
       }
     });
@@ -153,12 +117,7 @@ export function JobDiscoveryFlow() {
   }, []);
 
   async function loadCvs(userId: string) {
-    const { data, error: loadError } = await supabase
-      .from("cvs")
-      .select("id,title,content,updated_at")
-      .eq("user_id", userId)
-      .order("updated_at", { ascending: false });
-
+    const { data, error: loadError } = await supabase.from("cvs").select("id,title,content,updated_at").eq("user_id", userId).order("updated_at", { ascending: false });
     if (loadError) {
       setError(loadError.message);
       return;
@@ -166,9 +125,33 @@ export function JobDiscoveryFlow() {
 
     const records = data ?? [];
     setCvs(records);
-    if (records[0] && !selectedCvId) {
-      setSelectedCvId(records[0].id);
+    if (records[0] && !selectedCvId) setSelectedCvId(records[0].id);
+  }
+
+  async function loadBilling(userId: string) {
+    const { data: profile, error: profileError } = await supabase.from("billing_profiles").select("tailored_cv_credits").eq("user_id", userId).maybeSingle();
+    if (profileError) {
+      setError(profileError.message);
+      return;
     }
+
+    if (!profile) {
+      const { data: createdProfile, error: createError } = await supabase.from("billing_profiles").insert({ user_id: userId }).select("tailored_cv_credits").single();
+      if (createError) {
+        setError(createError.message);
+        return;
+      }
+      setBillingProfile(createdProfile);
+    } else {
+      setBillingProfile(profile);
+    }
+
+    const { data: ledger, error: ledgerError } = await supabase.from("credit_ledger").select("amount").eq("user_id", userId).eq("credit_type", "tailored_cv");
+    if (ledgerError) {
+      setError(ledgerError.message);
+      return;
+    }
+    setCreditEntries(ledger ?? []);
   }
 
   function updateField(field: keyof SearchState, value: string) {
@@ -176,15 +159,12 @@ export function JobDiscoveryFlow() {
   }
 
   function toggleJob(jobId: string) {
-    setSelectedJobIds((current) =>
-      current.includes(jobId) ? current.filter((id) => id !== jobId) : [...current, jobId]
-    );
+    setSelectedJobIds((current) => (current.includes(jobId) ? current.filter((id) => id !== jobId) : [...current, jobId]));
   }
 
   function toggleAllReady() {
     const trackableIds = jobs.filter((job) => job.status !== "tracked").map((job) => job.id);
-    const everyTrackableSelected = trackableIds.every((id) => selectedJobIds.includes(id));
-    setSelectedJobIds(everyTrackableSelected ? [] : trackableIds);
+    setSelectedJobIds(trackableIds.every((id) => selectedJobIds.includes(id)) ? [] : trackableIds);
   }
 
   async function findJobs() {
@@ -196,31 +176,18 @@ export function JobDiscoveryFlow() {
     try {
       const response = await fetch("/api/jobs/search", {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json"
-        },
-        body: JSON.stringify({
-          ...form,
-          cvText
-        })
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ...form, cvText })
       });
-      const result = (await response.json()) as { jobs?: ApplyJob[]; error?: string; sources?: Record<string, number> };
-
-      if (!response.ok) {
-        throw new Error(result.error || "The job search could not complete.");
-      }
+      const result = (await response.json()) as { jobs?: ApplyJob[]; error?: string };
+      if (!response.ok) throw new Error(result.error || "The job search could not complete.");
 
       const liveJobs = result.jobs ?? [];
       setJobs(liveJobs);
       setSelectedJobIds(liveJobs.filter((job) => job.status !== "tracked").map((job) => job.id));
-      setMessage(
-        liveJobs.length > 0
-          ? `${liveJobs.length} live job${liveJobs.length === 1 ? "" : "s"} found from connected sources.`
-          : "No live jobs found for that search yet. Try a broader role or region."
-      );
+      setMessage(liveJobs.length ? `${liveJobs.length} live job${liveJobs.length === 1 ? "" : "s"} found from connected sources.` : "No live jobs found for that search yet. Try a broader role or region.");
     } catch (searchError) {
-      const message = searchError instanceof Error ? searchError.message : "The job search could not complete.";
-      setError(message);
+      setError(searchError instanceof Error ? searchError.message : "The job search could not complete.");
     } finally {
       setSearching(false);
     }
@@ -231,17 +198,13 @@ export function JobDiscoveryFlow() {
       setError("Add a CV and select at least one job before preparing applications.");
       return;
     }
-
     setReviewing(true);
     setMessage(null);
     setError(null);
   }
 
   async function saveJobToTracker(job: ApplyJob, cvId: string | null, status: "saved" | "ready") {
-    if (!user) {
-      setError("Sign in with Google before saving jobs to the tracker.");
-      return null;
-    }
+    if (!user) throw new Error("Sign in with Google before saving jobs to the tracker.");
 
     const { data: savedJob, error: jobError } = await supabase
       .from("jobs")
@@ -258,55 +221,30 @@ export function JobDiscoveryFlow() {
       })
       .select("id")
       .single();
+    if (jobError) throw jobError;
 
-    if (jobError) {
-      throw jobError;
-    }
-
-    const { data: application, error: applicationError } = await supabase
-      .from("applications")
-      .insert({
-        user_id: user.id,
-        job_id: savedJob.id,
-        cv_id: cvId,
-        status
-      })
-      .select("id")
-      .single();
-
-    if (applicationError) {
-      throw applicationError;
-    }
-
+    const { data: application, error: applicationError } = await supabase.from("applications").insert({ user_id: user.id, job_id: savedJob.id, cv_id: cvId, status }).select("id").single();
+    if (applicationError) throw applicationError;
     return application.id;
   }
 
   async function confirmPrepare() {
-    if (!user) {
-      setError("Sign in with Google before saving jobs to the tracker.");
-      return;
-    }
-
     setSavingJobs(true);
     setError(null);
 
     try {
       const savedIds: string[] = [];
-
       for (const job of trackableSelectedJobs) {
         await saveJobToTracker(job, selectedCvId || null, "saved");
         savedIds.push(job.id);
       }
 
-      setJobs((current) =>
-        current.map((job) => (savedIds.includes(job.id) ? { ...job, status: "tracked" } : job))
-      );
+      setJobs((current) => current.map((job) => (savedIds.includes(job.id) ? { ...job, status: "tracked" } : job)));
       setSelectedJobIds([]);
       setReviewing(false);
       setMessage(`${savedIds.length} job${savedIds.length === 1 ? "" : "s"} saved to the tracker. The user applies manually from the official job page.`);
     } catch (saveError) {
-      const message = saveError instanceof Error ? saveError.message : "Jobs could not be saved to the tracker.";
-      setError(message);
+      setError(saveError instanceof Error ? saveError.message : "Jobs could not be saved to the tracker.");
     } finally {
       setSavingJobs(false);
     }
@@ -317,9 +255,12 @@ export function JobDiscoveryFlow() {
       setError("Sign in with Google before generating and saving a tailored CV.");
       return;
     }
-
     if (!cvText) {
       setError("Add or select a CV before generating a tailored version.");
+      return;
+    }
+    if (!canUseTailoredCv) {
+      setError("You need a tailored CV credit before generating another job-specific CV. This will connect to Stripe next.");
       return;
     }
 
@@ -330,20 +271,11 @@ export function JobDiscoveryFlow() {
     try {
       const response = await fetch("/api/cv/tailor", {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json"
-        },
-        body: JSON.stringify({
-          masterCv: cvText,
-          job,
-          insight: job.insight
-        })
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ masterCv: cvText, job, insight: job.insight })
       });
       const result = (await response.json()) as { cv?: TailoredCv; error?: string };
-
-      if (!response.ok || !result.cv) {
-        throw new Error(result.error || "The tailored CV could not be generated.");
-      }
+      if (!response.ok || !result.cv) throw new Error(result.error || "The tailored CV could not be generated.");
 
       const { data: savedCv, error: cvError } = await supabase
         .from("cvs")
@@ -351,32 +283,30 @@ export function JobDiscoveryFlow() {
           user_id: user.id,
           title: result.cv.title || `${job.title} tailored CV`,
           source_type: "tailored",
-          content: {
-            ...result.cv,
-            tailoredFor: {
-              title: job.title,
-              company: job.company,
-              source: job.source,
-              url: job.url,
-              matchScore: job.score
-            }
-          } as Json
+          content: { ...result.cv, tailoredFor: { title: job.title, company: job.company, source: job.source, url: job.url, matchScore: job.score } } as Json
         })
         .select("id,title,content,updated_at")
         .single();
-
-      if (cvError) {
-        throw cvError;
-      }
+      if (cvError) throw cvError;
 
       await saveJobToTracker(job, savedCv.id, "ready");
+
+      const { error: creditError } = await supabase.from("credit_ledger").insert({
+        user_id: user.id,
+        credit_type: "tailored_cv",
+        amount: -1,
+        reason: "Generated tailored CV",
+        metadata: { jobTitle: job.title, company: job.company, source: job.source } as Json
+      });
+      if (creditError) throw creditError;
+
+      setCreditEntries((current) => [{ amount: -1 }, ...current]);
       setCvs((current) => [savedCv, ...current]);
       setSelectedCvId(savedCv.id);
       setJobs((current) => current.map((item) => (item.id === job.id ? { ...item, status: "tailored" } : item)));
-      setMessage(`Tailored CV created for ${job.title} and saved to the tracker as CV ready.`);
+      setMessage(`Tailored CV created for ${job.title}, 1 credit used, and saved to the tracker as CV ready.`);
     } catch (tailorError) {
-      const message = tailorError instanceof Error ? tailorError.message : "The tailored CV could not be generated.";
-      setError(message);
+      setError(tailorError instanceof Error ? tailorError.message : "The tailored CV could not be generated.");
     } finally {
       setTailoringJobId(null);
     }
@@ -389,240 +319,64 @@ export function JobDiscoveryFlow() {
           <div>
             <p className="text-sm font-semibold text-muted">Application console</p>
             <h3 className="mt-1 text-2xl font-semibold tracking-normal">Add CV, find jobs, prepare applications</h3>
-            <p className="mt-2 max-w-2xl text-sm leading-6 text-muted">
-              Choose a CV first so CareerPilot can recommend jobs, explain the fit, spot missing skills, and prepare the right application pack.
-            </p>
+            <p className="mt-2 max-w-2xl text-sm leading-6 text-muted">Choose a CV first so CareerPilot can recommend jobs, explain the fit, spot missing skills, and prepare the right application pack.</p>
           </div>
-          <button
-            type="button"
-            onClick={reviewPrepare}
-            disabled={!canPrepare}
-            className="inline-flex min-h-11 items-center justify-center gap-2 rounded-lg bg-ink px-4 font-bold text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-50"
-          >
+          <button type="button" onClick={reviewPrepare} disabled={!canPrepare} className="inline-flex min-h-11 items-center justify-center gap-2 rounded-lg bg-ink px-4 font-bold text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-50">
             <BookmarkCheck className="h-4 w-4" aria-hidden="true" />
             Prepare selected
           </button>
         </div>
 
         <div className="mt-5 grid gap-4 lg:grid-cols-[0.9fr_1.1fr]">
-          <div className="rounded-xl border border-line bg-[#fafaf8] p-4">
-            <div className="flex items-center gap-2">
-              <FileText className="h-5 w-5 text-pilot-green" aria-hidden="true" />
-              <h4 className="font-bold">Add CV</h4>
-            </div>
-            <div className="mt-4 grid gap-3">
-              {user && cvs.length > 0 ? (
-                <label className="grid gap-2 text-sm font-semibold text-ink">
-                  Saved CV
-                  <select
-                    value={selectedCvId}
-                    onChange={(event) => setSelectedCvId(event.target.value)}
-                    className="h-12 rounded-lg border border-line bg-white px-3 text-base font-normal outline-none focus:border-pilot-green"
-                  >
-                    {cvs.map((cv) => (
-                      <option key={cv.id} value={cv.id}>
-                        {cv.title}
-                      </option>
-                    ))}
-                  </select>
-                </label>
-              ) : (
-                <div className="rounded-lg bg-white p-3 text-sm font-bold text-muted">
-                  {user ? "No saved CVs yet. Paste a CV below for this search." : "Sign in to use saved CV history, or paste a CV below."}
-                </div>
-              )}
-              <label className="grid gap-2 text-sm font-semibold text-ink">
-                Paste CV for CV-based recommendations
-                <textarea
-                  rows={6}
-                  value={pastedCv}
-                  onChange={(event) => setPastedCv(event.target.value)}
-                  placeholder="Paste a CV here so each job match reflects the user's actual skills, experience, and target direction."
-                  className="rounded-lg border border-line bg-white p-3 text-base font-normal leading-6 outline-none focus:border-pilot-green"
-                />
-              </label>
-            </div>
-          </div>
+          <CvInput user={user} cvs={cvs} selectedCvId={selectedCvId} pastedCv={pastedCv} onSelectCv={setSelectedCvId} onPasteCv={setPastedCv} />
+          <SearchDetails form={form} searching={searching} onField={updateField} onSearch={findJobs} />
+        </div>
 
-          <div className="rounded-xl border border-line bg-[#fafaf8] p-4">
-            <div className="flex items-center gap-2">
-              <SlidersHorizontal className="h-5 w-5 text-pilot-green" aria-hidden="true" />
-              <h4 className="font-bold">Search details</h4>
-            </div>
-            <div className="mt-4 grid gap-3 md:grid-cols-2">
-              <Field label="Target roles" value={form.role} onChange={(value) => updateField("role", value)} />
-              <Field label="Preferred regions" value={form.regions} onChange={(value) => updateField("regions", value)} />
-              <SelectField
-                label="Working style"
-                value={form.workingStyle}
-                options={["Remote-first", "Hybrid", "On-site", "Flexible"]}
-                onChange={(value) => updateField("workingStyle", value)}
-              />
-              <Field label="Salary expectation" value={form.salary} onChange={(value) => updateField("salary", value)} />
-              <SelectField
-                label="How many jobs?"
-                value={form.numberOfJobs}
-                options={["10", "25", "50", "100"]}
-                onChange={(value) => updateField("numberOfJobs", value)}
-              />
-              <button
-                type="button"
-                onClick={findJobs}
-                disabled={searching}
-                className="inline-flex min-h-12 items-center justify-center gap-2 self-end rounded-lg border border-line bg-white px-4 font-bold transition hover:border-pilot-green"
-              >
-                <Sparkles className="h-4 w-4" aria-hidden="true" />
-                {searching ? "Searching" : "Find jobs"}
-              </button>
+        <div className="mt-4 grid gap-3 rounded-xl border border-line bg-[#fafaf8] p-4 md:grid-cols-[1fr_auto] md:items-center">
+          <div className="flex items-start gap-3">
+            <span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-white text-pilot-green">
+              <CreditCard className="h-5 w-5" aria-hidden="true" />
+            </span>
+            <div>
+              <h4 className="font-bold">Plan and tailored CV credits</h4>
+              <p className="mt-1 text-sm leading-6 text-muted">Monthly subscription includes job search, saved roles, tracker, and master CV applications. Tailored CVs are a paid add-on and use 1 credit each.</p>
             </div>
           </div>
+          <div className="rounded-lg bg-white px-4 py-3 text-sm font-bold text-ink">{user ? `${tailoredCvCredits} tailored CV credit${tailoredCvCredits === 1 ? "" : "s"} left` : "Sign in to use credits"}</div>
         </div>
       </section>
 
-      <section className="rounded-2xl border border-line bg-[#1f1f1f] p-5 text-white shadow-quiet">
-        <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-          <div>
-            <p className="text-sm font-semibold text-[#b8d8d3]">Premium monitoring</p>
-            <h3 className="mt-1 text-2xl font-semibold tracking-normal">Fresh job checks every 4 days</h3>
-            <p className="mt-2 max-w-3xl text-sm leading-6 text-[#d7d7d2]">
-              Paid users can save a search profile and CareerPilot will scan connected job APIs every 4 days, then surface new matches in the tracker and notify them.
-            </p>
-          </div>
-          <span className="inline-flex min-h-10 shrink-0 items-center justify-center rounded-lg bg-white px-4 text-sm font-bold text-ink">
-            Pro feature
-          </span>
-        </div>
-      </section>
+      <PremiumMonitoring />
 
       <section className="rounded-2xl border border-line bg-white p-5 shadow-quiet">
         <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
           <div>
             <h3 className="text-lg font-bold">Matching jobs</h3>
-            <p className="mt-1 text-sm text-muted">
-              {selectedJobs.length} selected | {trackableSelectedJobs.length} ready to prepare | {cvText ? "CV-aware ranking on" : "Add CV for personal ranking"}
-            </p>
+            <p className="mt-1 text-sm text-muted">{selectedJobs.length} selected | {trackableSelectedJobs.length} ready to prepare | {cvText ? "CV-aware ranking on" : "Add CV for personal ranking"}</p>
           </div>
           <div className="flex flex-col gap-2 sm:flex-row">
-            <button
-              type="button"
-              onClick={toggleAllReady}
-              className="inline-flex min-h-10 items-center justify-center gap-2 rounded-lg border border-line bg-white px-3 text-sm font-bold transition hover:border-pilot-green"
-            >
-              <CheckCircle2 className="h-4 w-4" aria-hidden="true" />
-              Select all new
-            </button>
-            <button
-              type="button"
-              onClick={reviewPrepare}
-              disabled={!canPrepare}
-              className="inline-flex min-h-10 items-center justify-center gap-2 rounded-lg bg-ink px-3 text-sm font-bold text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-50"
-            >
-              <BookmarkCheck className="h-4 w-4" aria-hidden="true" />
-              Prepare selected
-            </button>
+            <ActionButton onClick={toggleAllReady} icon={CheckCircle2} label="Select all new" variant="secondary" />
+            <ActionButton onClick={reviewPrepare} icon={BookmarkCheck} label="Prepare selected" disabled={!canPrepare} />
           </div>
         </div>
 
         <div className="mt-5 grid gap-3">
-          {jobs.length === 0 && (
-            <div className="rounded-xl border border-dashed border-line bg-[#fafaf8] p-6 text-sm font-bold text-muted">
-              No jobs to show yet. Run a broader search or connect another source.
-            </div>
-          )}
-          {jobs.map((job) => {
-            const selected = selectedJobIds.includes(job.id);
-            const status = statusCopy[job.status];
-            const disabled = job.status === "tracked";
-
-            return (
-              <article
-                key={job.id}
-                className={`rounded-xl border p-4 transition ${
-                  selected ? "border-pilot-green bg-pilot-greenSoft/60" : "border-line bg-[#fafaf8]"
-                }`}
-              >
-                <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-                  <div className="flex items-start gap-3">
-                    <input
-                      type="checkbox"
-                      checked={selected}
-                      disabled={disabled}
-                      onChange={() => toggleJob(job.id)}
-                      className="mt-1 h-5 w-5 accent-pilot-green disabled:opacity-40"
-                      aria-label={`Select ${job.title}`}
-                    />
-                    <div>
-                      <div className="flex flex-wrap items-center gap-2">
-                        <h4 className="font-bold">{job.title}</h4>
-                        <span className={`rounded-full px-2.5 py-1 text-xs font-black ${status.className}`}>
-                          {status.label}
-                        </span>
-                      </div>
-                      <p className="mt-1 text-sm leading-6 text-muted">
-                        {job.company} | {job.location} | {job.salary}
-                      </p>
-                      <p className="mt-1 text-xs font-bold text-slate-500">{job.source}</p>
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-3">
-                    <span className="grid h-9 min-w-16 place-items-center rounded-full bg-white px-3 font-black text-pilot-green">
-                      {job.score}%
-                    </span>
-                    <a
-                      href={job.url || "#"}
-                      target="_blank"
-                      rel="noreferrer"
-                      className="inline-flex min-h-9 items-center gap-2 rounded-lg border border-line bg-white px-3 text-sm font-bold transition hover:border-pilot-green"
-                    >
-                      Apply link
-                      <ExternalLink className="h-3.5 w-3.5" aria-hidden="true" />
-                    </a>
-                  </div>
-                </div>
-                <JobPlan
-                  job={job}
-                  cvReady={Boolean(cvText)}
-                  tailoring={tailoringJobId === job.id}
-                  onTailor={() => generateTailoredCv(job)}
-                />
-              </article>
-            );
-          })}
+          {jobs.length === 0 && <div className="rounded-xl border border-dashed border-line bg-[#fafaf8] p-6 text-sm font-bold text-muted">No jobs to show yet. Run a broader search or connect another source.</div>}
+          {jobs.map((job) => (
+            <JobCard
+              key={job.id}
+              job={job}
+              selected={selectedJobIds.includes(job.id)}
+              cvReady={Boolean(cvText)}
+              tailoring={tailoringJobId === job.id}
+              creditsAvailable={canUseTailoredCv}
+              onToggle={() => toggleJob(job.id)}
+              onTailor={() => generateTailoredCv(job)}
+            />
+          ))}
         </div>
 
-        {reviewing && (
-          <div className="mt-5 rounded-2xl border border-pilot-green/30 bg-pilot-greenSoft p-5">
-            <div className="flex items-start gap-3">
-              <AlertTriangle className="mt-1 h-5 w-5 text-pilot-green" aria-hidden="true" />
-              <div>
-                <h3 className="font-bold">Review before applying</h3>
-                <p className="mt-2 text-sm leading-6 text-muted">
-                  CareerPilot will prepare {trackableSelectedJobs.length} selected job{trackableSelectedJobs.length === 1 ? "" : "s"} using{" "}
-                  <strong>{selectedCv?.title ?? "the pasted CV"}</strong>. The user still submits manually on each official application page.
-                </p>
-                <div className="mt-4 flex flex-col gap-2 sm:flex-row">
-                  <button
-                    type="button"
-                    onClick={confirmPrepare}
-                    disabled={savingJobs}
-                    className="inline-flex min-h-10 items-center justify-center gap-2 rounded-lg bg-ink px-4 text-sm font-bold text-white transition hover:bg-slate-800"
-                  >
-                    <BookmarkCheck className="h-4 w-4" aria-hidden="true" />
-                    {savingJobs ? "Saving" : "Save to tracker"}
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setReviewing(false)}
-                    className="inline-flex min-h-10 items-center justify-center rounded-lg border border-line bg-white px-4 text-sm font-bold transition hover:border-pilot-green"
-                  >
-                    Cancel
-                  </button>
-                </div>
-              </div>
-            </div>
-          </div>
-        )}
-
+        {reviewing && <ReviewPanel selectedCvTitle={selectedCv?.title ?? "the pasted CV"} count={trackableSelectedJobs.length} saving={savingJobs} onConfirm={confirmPrepare} onCancel={() => setReviewing(false)} />}
         {message && <p className="mt-4 text-sm font-bold text-pilot-green">{message}</p>}
         {error && <p className="mt-4 text-sm font-bold text-pilot-red">{error}</p>}
       </section>
@@ -636,32 +390,135 @@ export function JobDiscoveryFlow() {
   );
 }
 
-function describeJobInsight(insight?: JobInsight) {
-  if (!insight) {
-    return null;
-  }
-
-  return [
-    "Why it fits:",
-    ...insight.fit,
-    "Missing or check:",
-    ...insight.missing,
-    "CV angle:",
-    insight.cvAngle
-  ].join("\n");
+function CvInput({ user, cvs, selectedCvId, pastedCv, onSelectCv, onPasteCv }: { user: User | null; cvs: CvRecord[]; selectedCvId: string; pastedCv: string; onSelectCv: (value: string) => void; onPasteCv: (value: string) => void }) {
+  return (
+    <div className="rounded-xl border border-line bg-[#fafaf8] p-4">
+      <div className="flex items-center gap-2">
+        <FileText className="h-5 w-5 text-pilot-green" aria-hidden="true" />
+        <h4 className="font-bold">Add CV</h4>
+      </div>
+      <div className="mt-4 grid gap-3">
+        {user && cvs.length > 0 ? (
+          <label className="grid gap-2 text-sm font-semibold text-ink">
+            Saved CV
+            <select value={selectedCvId} onChange={(event) => onSelectCv(event.target.value)} className="h-12 rounded-lg border border-line bg-white px-3 text-base font-normal outline-none focus:border-pilot-green">
+              {cvs.map((cv) => <option key={cv.id} value={cv.id}>{cv.title}</option>)}
+            </select>
+          </label>
+        ) : (
+          <div className="rounded-lg bg-white p-3 text-sm font-bold text-muted">{user ? "No saved CVs yet. Paste a CV below for this search." : "Sign in to use saved CV history, or paste a CV below."}</div>
+        )}
+        <label className="grid gap-2 text-sm font-semibold text-ink">
+          Paste CV for CV-based recommendations
+          <textarea rows={6} value={pastedCv} onChange={(event) => onPasteCv(event.target.value)} placeholder="Paste a CV here so each job match reflects the user's actual skills, experience, and target direction." className="rounded-lg border border-line bg-white p-3 text-base font-normal leading-6 outline-none focus:border-pilot-green" />
+        </label>
+      </div>
+    </div>
+  );
 }
 
-function JobPlan({
-  job,
-  cvReady,
-  tailoring,
-  onTailor
-}: {
-  job: ApplyJob;
-  cvReady: boolean;
-  tailoring: boolean;
-  onTailor: () => void;
-}) {
+function SearchDetails({ form, searching, onField, onSearch }: { form: SearchState; searching: boolean; onField: (field: keyof SearchState, value: string) => void; onSearch: () => void }) {
+  return (
+    <div className="rounded-xl border border-line bg-[#fafaf8] p-4">
+      <div className="flex items-center gap-2">
+        <SlidersHorizontal className="h-5 w-5 text-pilot-green" aria-hidden="true" />
+        <h4 className="font-bold">Search details</h4>
+      </div>
+      <div className="mt-4 grid gap-3 md:grid-cols-2">
+        <Field label="Target roles" value={form.role} onChange={(value) => onField("role", value)} />
+        <Field label="Preferred regions" value={form.regions} onChange={(value) => onField("regions", value)} />
+        <SelectField label="Working style" value={form.workingStyle} options={["Remote-first", "Hybrid", "On-site", "Flexible"]} onChange={(value) => onField("workingStyle", value)} />
+        <Field label="Salary expectation" value={form.salary} onChange={(value) => onField("salary", value)} />
+        <SelectField label="How many jobs?" value={form.numberOfJobs} options={["10", "25", "50", "100"]} onChange={(value) => onField("numberOfJobs", value)} />
+        <button type="button" onClick={onSearch} disabled={searching} className="inline-flex min-h-12 items-center justify-center gap-2 self-end rounded-lg border border-line bg-white px-4 font-bold transition hover:border-pilot-green">
+          <Sparkles className="h-4 w-4" aria-hidden="true" />
+          {searching ? "Searching" : "Find jobs"}
+        </button>
+      </div>
+    </div>
+  );
+}
+
+function PremiumMonitoring() {
+  return (
+    <section className="rounded-2xl border border-line bg-[#1f1f1f] p-5 text-white shadow-quiet">
+      <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+        <div>
+          <p className="text-sm font-semibold text-[#b8d8d3]">Premium monitoring</p>
+          <h3 className="mt-1 text-2xl font-semibold tracking-normal">Fresh job checks every 4 days</h3>
+          <p className="mt-2 max-w-3xl text-sm leading-6 text-[#d7d7d2]">Paid users can save a search profile and CareerPilot will scan connected job APIs every 4 days, then surface new matches in the tracker and notify them.</p>
+        </div>
+        <span className="inline-flex min-h-10 shrink-0 items-center justify-center rounded-lg bg-white px-4 text-sm font-bold text-ink">Pro feature</span>
+      </div>
+    </section>
+  );
+}
+
+function JobCard({ job, selected, cvReady, tailoring, creditsAvailable, onToggle, onTailor }: { job: ApplyJob; selected: boolean; cvReady: boolean; tailoring: boolean; creditsAvailable: boolean; onToggle: () => void; onTailor: () => void }) {
+  const status = statusCopy[job.status];
+  const disabled = job.status === "tracked";
+
+  return (
+    <article className={`rounded-xl border p-4 transition ${selected ? "border-pilot-green bg-pilot-greenSoft/60" : "border-line bg-[#fafaf8]"}`}>
+      <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+        <div className="flex items-start gap-3">
+          <input type="checkbox" checked={selected} disabled={disabled} onChange={onToggle} className="mt-1 h-5 w-5 accent-pilot-green disabled:opacity-40" aria-label={`Select ${job.title}`} />
+          <div>
+            <div className="flex flex-wrap items-center gap-2">
+              <h4 className="font-bold">{job.title}</h4>
+              <span className={`rounded-full px-2.5 py-1 text-xs font-black ${status.className}`}>{status.label}</span>
+            </div>
+            <p className="mt-1 text-sm leading-6 text-muted">{job.company} | {job.location} | {job.salary}</p>
+            <p className="mt-1 text-xs font-bold text-slate-500">{job.source}</p>
+          </div>
+        </div>
+        <div className="flex items-center gap-3">
+          <span className="grid h-9 min-w-16 place-items-center rounded-full bg-white px-3 font-black text-pilot-green">{job.score}%</span>
+          <a href={job.url || "#"} target="_blank" rel="noreferrer" className="inline-flex min-h-9 items-center gap-2 rounded-lg border border-line bg-white px-3 text-sm font-bold transition hover:border-pilot-green">
+            Apply link
+            <ExternalLink className="h-3.5 w-3.5" aria-hidden="true" />
+          </a>
+        </div>
+      </div>
+      <JobPlan job={job} cvReady={cvReady} tailoring={tailoring} creditsAvailable={creditsAvailable} onTailor={onTailor} />
+    </article>
+  );
+}
+
+function ReviewPanel({ selectedCvTitle, count, saving, onConfirm, onCancel }: { selectedCvTitle: string; count: number; saving: boolean; onConfirm: () => void; onCancel: () => void }) {
+  return (
+    <div className="mt-5 rounded-2xl border border-pilot-green/30 bg-pilot-greenSoft p-5">
+      <div className="flex items-start gap-3">
+        <AlertTriangle className="mt-1 h-5 w-5 text-pilot-green" aria-hidden="true" />
+        <div>
+          <h3 className="font-bold">Review before applying</h3>
+          <p className="mt-2 text-sm leading-6 text-muted">CareerPilot will prepare {count} selected job{count === 1 ? "" : "s"} using <strong>{selectedCvTitle}</strong>. The user still submits manually on each official application page.</p>
+          <div className="mt-4 flex flex-col gap-2 sm:flex-row">
+            <ActionButton onClick={onConfirm} icon={BookmarkCheck} label={saving ? "Saving" : "Save to tracker"} />
+            <button type="button" onClick={onCancel} className="inline-flex min-h-10 items-center justify-center rounded-lg border border-line bg-white px-4 text-sm font-bold transition hover:border-pilot-green">Cancel</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function ActionButton({ onClick, icon: Icon, label, disabled, variant = "primary" }: { onClick: () => void; icon: typeof CheckCircle2; label: string; disabled?: boolean; variant?: "primary" | "secondary" }) {
+  const className = variant === "primary" ? "bg-ink text-white hover:bg-slate-800" : "border border-line bg-white text-ink hover:border-pilot-green";
+  return (
+    <button type="button" onClick={onClick} disabled={disabled} className={`inline-flex min-h-10 items-center justify-center gap-2 rounded-lg px-3 text-sm font-bold transition disabled:cursor-not-allowed disabled:opacity-50 ${className}`}>
+      <Icon className="h-4 w-4" aria-hidden="true" />
+      {label}
+    </button>
+  );
+}
+
+function describeJobInsight(insight?: JobInsight) {
+  if (!insight) return null;
+  return ["Why it fits:", ...insight.fit, "Missing or check:", ...insight.missing, "CV angle:", insight.cvAngle].join("\n");
+}
+
+function JobPlan({ job, cvReady, tailoring, creditsAvailable, onTailor }: { job: ApplyJob; cvReady: boolean; tailoring: boolean; creditsAvailable: boolean; onTailor: () => void }) {
   const insight = job.insight ?? getJobInsight(job, cvReady);
 
   return (
@@ -682,31 +539,16 @@ function JobPlan({
             </div>
           ))}
         </div>
-        <button
-          type="button"
-          onClick={onTailor}
-          disabled={!cvReady || tailoring}
-          className="mt-4 inline-flex min-h-9 w-full items-center justify-center gap-2 rounded-lg bg-ink px-3 text-sm font-bold text-white transition hover:bg-slate-800"
-        >
+        <button type="button" onClick={onTailor} disabled={!cvReady || tailoring || !creditsAvailable} className="mt-4 inline-flex min-h-9 w-full items-center justify-center gap-2 rounded-lg bg-ink px-3 text-sm font-bold text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-50">
           <WandSparkles className="h-4 w-4" aria-hidden="true" />
-          {tailoring ? "Generating" : "Generate tailored CV"}
+          {tailoring ? "Generating" : creditsAvailable ? "Generate tailored CV" : "Buy tailored CV credit"}
         </button>
       </div>
     </div>
   );
 }
 
-function InsightBlock({
-  icon: Icon,
-  title,
-  items,
-  tone = "green"
-}: {
-  icon: typeof Target;
-  title: string;
-  items: string[];
-  tone?: "green" | "amber";
-}) {
+function InsightBlock({ icon: Icon, title, items, tone = "green" }: { icon: typeof Target; title: string; items: string[]; tone?: "green" | "amber" }) {
   return (
     <div className="rounded-xl border border-line bg-white p-4">
       <div className="flex items-center gap-2">
@@ -714,11 +556,7 @@ function InsightBlock({
         <h5 className="text-sm font-black">{title}</h5>
       </div>
       <ul className="mt-3 grid gap-2">
-        {items.map((item) => (
-          <li key={item} className="text-sm leading-6 text-muted">
-            {item}
-          </li>
-        ))}
+        {items.map((item) => <li key={item} className="text-sm leading-6 text-muted">{item}</li>)}
       </ul>
     </div>
   );
@@ -735,7 +573,6 @@ function getJobInsight(job: ApplyJob, cvReady: boolean): JobInsight {
   }
 
   const title = job.title.toLowerCase();
-
   if (title.includes("software") || title.includes("developer") || title.includes("engineer")) {
     return {
       fit: ["Computer Science degree is directly relevant.", "Good route into coding, testing, product, or fintech teams.", "Projects, GitHub work, and final-year modules can be used as proof."],
@@ -744,7 +581,6 @@ function getJobInsight(job: ApplyJob, cvReady: boolean): JobInsight {
       checklist: ["Use a technical CV version.", "Mention strongest project in the summary.", "Apply on the official job page."]
     };
   }
-
   if (title.includes("data") || title.includes("analyst") || title.includes("business")) {
     return {
       fit: ["Strong fit for a CS graduate with SQL, Excel, Python, or statistics.", "Analyst roles are often more graduate-friendly than pure engineering roles.", "Coursework can be reframed around data, reporting, and insight."],
@@ -753,22 +589,12 @@ function getJobInsight(job: ApplyJob, cvReady: boolean): JobInsight {
       checklist: ["Use a data-focused CV version.", "Highlight SQL/Python/Excel.", "Save follow-up date after applying."]
     };
   }
-
   if (title.includes("support") || title.includes("service desk") || title.includes("it ")) {
     return {
       fit: ["Good first tech role for building commercial experience.", "CS background helps with troubleshooting and systems thinking.", "Customer-facing experience can strengthen the application."],
       missing: ["Check if shift work or out-of-hours support is required.", "Mention communication skills, not only technical skills."],
       cvAngle: "Make the CV practical: troubleshooting, communication, ticket handling, Windows/cloud basics, and calm problem solving.",
       checklist: ["Use an IT support CV version.", "Include any customer-facing work.", "Track application status after submitting."]
-    };
-  }
-
-  if (title.includes("test") || title.includes("qa")) {
-    return {
-      fit: ["Testing is a strong entry route for CS graduates.", "Programming and debugging experience translate well.", "Attention to detail and documentation can be emphasised."],
-      missing: ["Check if automation tools are required.", "Add any testing, debugging, or quality coursework."],
-      cvAngle: "Frame the CV around debugging, test thinking, documentation, and reliable delivery.",
-      checklist: ["Use a QA-focused CV version.", "Mention test cases or debugging projects.", "Open the apply link and submit manually."]
     };
   }
 
@@ -781,26 +607,11 @@ function getJobInsight(job: ApplyJob, cvReady: boolean): JobInsight {
 }
 
 function stringifyCvContent(content: Json | undefined): string {
-  if (!content) {
-    return "";
-  }
-
-  if (typeof content === "string") {
-    return content;
-  }
-
-  if (typeof content === "number" || typeof content === "boolean") {
-    return String(content);
-  }
-
-  if (Array.isArray(content)) {
-    return content.map((item) => stringifyCvContent(item)).join("\n");
-  }
-
-  return Object.values(content)
-    .map((value) => stringifyCvContent(value))
-    .filter(Boolean)
-    .join("\n");
+  if (!content) return "";
+  if (typeof content === "string") return content;
+  if (typeof content === "number" || typeof content === "boolean") return String(content);
+  if (Array.isArray(content)) return content.map((item) => stringifyCvContent(item)).join("\n");
+  return Object.values(content).map((value) => stringifyCvContent(value)).filter(Boolean).join("\n");
 }
 
 function SummaryPill({ icon: Icon, label }: { icon: typeof FileText; label: string }) {
@@ -812,49 +623,21 @@ function SummaryPill({ icon: Icon, label }: { icon: typeof FileText; label: stri
   );
 }
 
-function Field({
-  label,
-  value,
-  onChange
-}: {
-  label: string;
-  value: string;
-  onChange: (value: string) => void;
-}) {
+function Field({ label, value, onChange }: { label: string; value: string; onChange: (value: string) => void }) {
   return (
     <label className="grid gap-2 text-sm font-semibold text-ink">
       {label}
-      <input
-        className="h-12 rounded-lg border border-line bg-white px-3 text-base font-normal outline-none focus:border-pilot-green"
-        value={value}
-        onChange={(event) => onChange(event.target.value)}
-      />
+      <input className="h-12 rounded-lg border border-line bg-white px-3 text-base font-normal outline-none focus:border-pilot-green" value={value} onChange={(event) => onChange(event.target.value)} />
     </label>
   );
 }
 
-function SelectField({
-  label,
-  value,
-  options,
-  onChange
-}: {
-  label: string;
-  value: string;
-  options: string[];
-  onChange: (value: string) => void;
-}) {
+function SelectField({ label, value, options, onChange }: { label: string; value: string; options: string[]; onChange: (value: string) => void }) {
   return (
     <label className="grid gap-2 text-sm font-semibold text-ink">
       {label}
-      <select
-        className="h-12 rounded-lg border border-line bg-white px-3 text-base font-normal outline-none focus:border-pilot-green"
-        value={value}
-        onChange={(event) => onChange(event.target.value)}
-      >
-        {options.map((option) => (
-          <option key={option}>{option}</option>
-        ))}
+      <select className="h-12 rounded-lg border border-line bg-white px-3 text-base font-normal outline-none focus:border-pilot-green" value={value} onChange={(event) => onChange(event.target.value)}>
+        {options.map((option) => <option key={option}>{option}</option>)}
       </select>
     </label>
   );
