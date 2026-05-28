@@ -1,5 +1,6 @@
 import {
   ClipboardCheck,
+  CreditCard,
   FileText,
   LayoutDashboard,
   Search
@@ -10,7 +11,8 @@ export const navigation: NavigationItem[] = [
   { id: "dashboard", label: "Dashboard", icon: LayoutDashboard },
   { id: "jobs", label: "Job Search", icon: Search },
   { id: "cv", label: "CV Studio", icon: FileText },
-  { id: "tracker", label: "Tracker", icon: ClipboardCheck }
+  { id: "tracker", label: "Tracker", icon: ClipboardCheck },
+  { id: "plans", label: "Plans", icon: CreditCard }
 ];
 
 export const metrics: Metric[] = [
@@ -96,5 +98,5 @@ export const trackerColumns: TrackerColumn[] = [
 export const launchPrinciples = [
   "Find jobs through approved APIs and official public feeds.",
   "Prepare master and tailored CVs without submitting applications for the user.",
-  "Check premium saved searches every 4 days and notify users about new matches."
+  "Check premium saved searches every day and notify users about new matches."
 ];
