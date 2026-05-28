@@ -40,6 +40,7 @@ export type Database = {
           career_summary?: string | null;
           updated_at?: string;
         };
+        Relationships: [];
       };
       cvs: {
         Row: {
@@ -66,6 +67,7 @@ export type Database = {
           content?: Json;
           updated_at?: string;
         };
+        Relationships: [];
       };
       jobs: {
         Row: {
@@ -107,6 +109,7 @@ export type Database = {
           match_score?: number | null;
           updated_at?: string;
         };
+        Relationships: [];
       };
       applications: {
         Row: {
@@ -135,6 +138,7 @@ export type Database = {
           submitted_at?: string | null;
           updated_at?: string;
         };
+        Relationships: [];
       };
       application_drafts: {
         Row: {
@@ -162,6 +166,7 @@ export type Database = {
           approved_at?: string | null;
           updated_at?: string;
         };
+        Relationships: [];
       };
       audit_logs: {
         Row: {
@@ -181,7 +186,12 @@ export type Database = {
           created_at?: string;
         };
         Update: never;
+        Relationships: [];
       };
     };
+    Views: Record<string, never>;
+    Functions: Record<string, never>;
+    Enums: Record<string, never>;
+    CompositeTypes: Record<string, never>;
   };
 };
