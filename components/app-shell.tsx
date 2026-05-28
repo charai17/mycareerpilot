@@ -17,12 +17,12 @@ import {
 import { AuthStatus } from "@/components/auth-status";
 import { CvStudio } from "@/components/cv-studio";
 import { JobDiscoveryFlow } from "@/components/job-discovery-flow";
+import { TrackerView as ApplicationTracker } from "@/components/tracker-view";
 import {
   applicationSteps,
   jobMatches,
   metrics,
-  navigation,
-  trackerColumns
+  navigation
 } from "@/lib/mock-data";
 import type { JobMatch, Metric, ViewId } from "@/lib/types";
 
@@ -81,7 +81,7 @@ export function AppShell() {
         <section className="mt-6 rounded-lg border border-line bg-white p-3 lg:mt-auto">
           <p className="text-xs font-semibold uppercase text-muted">Plan</p>
           <strong className="mt-1 block text-sm">Pro trial</strong>
-          <p className="mt-1 text-xs leading-5 text-muted">32 matches left</p>
+          <p className="mt-1 text-xs leading-5 text-muted">Next job scan in 4 days</p>
         </section>
       </aside>
 
@@ -90,7 +90,7 @@ export function AppShell() {
         {activeView === "dashboard" && <DashboardView onNavigate={setActiveView} />}
         {activeView === "jobs" && <JobsView />}
         {activeView === "cv" && <CvView />}
-        {activeView === "tracker" && <TrackerView />}
+        {activeView === "tracker" && <TrackerPanel />}
       </main>
     </div>
   );
@@ -171,7 +171,7 @@ const services: Array<{
 }> = [
   {
     title: "Job Discovery Pilot",
-    detail: "Find relevant roles and prepare assisted applications from one place.",
+    detail: "Find relevant roles, prepare CVs, and open official apply links from one place.",
     view: "jobs",
     icon: BriefcaseBusiness,
     label: "Search jobs"
@@ -185,7 +185,7 @@ const services: Array<{
   },
   {
     title: "Application Tracker",
-    detail: "Track every saved role, draft, submission, interview, and follow-up.",
+    detail: "Track every saved role, manual application, interview, and follow-up.",
     view: "tracker",
     icon: ShieldCheck,
     label: "Open tracker"
@@ -228,7 +228,7 @@ function CvCta({ onNavigate }: { onNavigate: (view: ViewId) => void }) {
         <p className="text-sm font-semibold text-[#b8d8d3]">Build the perfect CV</p>
         <h2 className="mt-1 text-2xl font-medium tracking-normal">A stronger CV can improve job chances by 75%.</h2>
         <p className="mt-2 max-w-2xl text-sm leading-6 text-[#d7d7d2]">
-          CareerPilot AI helps shape your master CV before tailoring it for each role.
+          CareerPilot AI helps shape your master CV and can prepare a tailored version for selected roles.
         </p>
       </div>
       <button
@@ -247,7 +247,7 @@ function JobsView() {
   return (
     <section aria-labelledby="jobs-title" className="mx-auto max-w-6xl">
       <SectionHeading eyebrow="Discovery" title="Job search">
-        <Button>Run search</Button>
+        <Button>Find jobs</Button>
       </SectionHeading>
 
       <JobDiscoveryFlow />
@@ -259,7 +259,7 @@ function CvView() {
   return (
     <section aria-labelledby="cv-title" className="mx-auto max-w-6xl">
       <SectionHeading eyebrow="Documents" title="CV Studio">
-        <Button>Generate tailored CV</Button>
+        <Button>Build CV</Button>
       </SectionHeading>
 
       <CvStudio />
@@ -267,27 +267,14 @@ function CvView() {
   );
 }
 
-function TrackerView() {
+function TrackerPanel() {
   return (
     <section aria-labelledby="tracker-title" className="mx-auto max-w-6xl">
       <SectionHeading eyebrow="Pipeline" title="Application tracker">
         <Button variant="secondary">Export</Button>
       </SectionHeading>
 
-      <div className="grid gap-4 xl:grid-cols-4">
-        {trackerColumns.map((column) => (
-          <section key={column.title} className="min-h-72 rounded-2xl border border-line/90 bg-white/85 p-4 shadow-quiet">
-            <h3 className="font-bold">{column.title}</h3>
-            <div className="mt-4 grid gap-3">
-              {column.jobs.map((job) => (
-                <article key={job} className="rounded-xl border border-line/80 bg-[#fbfaf7] p-3 text-sm font-bold">
-                  {job}
-                </article>
-              ))}
-            </div>
-          </section>
-        ))}
-      </div>
+      <ApplicationTracker />
     </section>
   );
 }
@@ -392,7 +379,7 @@ export function FoundationNotes() {
     <div className="grid gap-4 lg:grid-cols-3">
       <MiniNote icon={KeyRound} title="Auth ready" detail="Google sign-in can be wired through Supabase Auth." />
       <MiniNote icon={Database} title="Data ready" detail="Profile, CV, jobs, drafts, and audit logs map cleanly to Postgres." />
-      <MiniNote icon={Sparkles} title="AI ready" detail="OpenAI calls can slot into CV parsing, matching, and answer drafting." />
+      <MiniNote icon={Sparkles} title="AI ready" detail="AI calls can slot into CV writing, matching, and premium job monitoring." />
       <MiniNote icon={Globe2} title="Global regions" detail="The search model supports user-selected regions and remote preferences." />
       <MiniNote icon={FileSearch} title="Manual import" detail="A paste-any-job flow gives value before broad connector coverage." />
       <MiniNote icon={CircleDollarSign} title="Billing ready" detail="Stripe can be introduced after the core value loop works." />
