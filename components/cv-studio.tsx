@@ -107,6 +107,7 @@ export function CvStudio() {
   const [selectedCvId, setSelectedCvId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [generating, setGenerating] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [answers, setAnswers] = useState<ChatAnswer[]>([]);
@@ -147,9 +148,9 @@ export function CvStudio() {
     };
   }, []);
 
-  function submitAnswer() {
+  async function submitAnswer() {
     const value = draftAnswer.trim();
-    if (!currentQuestion || !value) {
+    if (!currentQuestion || !value || generating) {
       return;
     }
 
@@ -167,14 +168,42 @@ export function CvStudio() {
     setMessage(null);
     setError(null);
 
-    if (currentQuestionIndex + 1 === cvQuestions.length) {
-      const generated = generateCv(nextAnswers);
-      setSelectedCvId(null);
-      setForm(generated);
-      setMessage("CV draft generated. Review it, then save it to the account.");
-    }
-
     setCurrentQuestionIndex((current) => current + 1);
+
+    if (currentQuestionIndex + 1 === cvQuestions.length) {
+      await generateCvWithAi(nextAnswers);
+    }
+  }
+
+  async function generateCvWithAi(nextAnswers: ChatAnswer[]) {
+    setGenerating(true);
+    setMessage("CareerPilot is writing the CV with Claude.");
+    setError(null);
+
+    try {
+      const response = await fetch("/api/cv/generate", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({ answers: nextAnswers })
+      });
+      const result = (await response.json()) as { cv?: CvFormState; error?: string; detail?: string };
+
+      if (!response.ok || !result.cv) {
+        throw new Error(result.error || "The CV could not be generated.");
+      }
+
+      setSelectedCvId(null);
+      setForm(result.cv);
+      setMessage("CV draft generated with Claude. Save it to the account when ready.");
+    } catch (generationError) {
+      const errorMessage = generationError instanceof Error ? generationError.message : "The CV could not be generated.";
+      setError(errorMessage);
+      setMessage(null);
+    } finally {
+      setGenerating(false);
+    }
   }
 
   function restartInterview() {
@@ -292,9 +321,30 @@ export function CvStudio() {
                   {currentQuestion.helper && <span className="mt-2 block text-xs font-semibold text-muted">{currentQuestion.helper}</span>}
                 </ChatBubble>
               ) : (
-                <ChatBubble speaker="CareerPilot">
-                  The first CV draft is ready. I chose <strong>{form.recommendedStyle}</strong> based on the target role.
-                </ChatBubble>
+                <>
+                  <ChatBubble speaker="CareerPilot">
+                    {generating ? (
+                      "I'm writing the first CV draft with Claude now."
+                    ) : (
+                      <>
+                        The first CV draft is ready. I chose <strong>{form.recommendedStyle}</strong> based on the target role.
+                      </>
+                    )}
+                  </ChatBubble>
+                  {!generating && !error && (
+                    <ChatBubble speaker="CareerPilot">
+                      <span className="block font-semibold text-ink">{form.title}</span>
+                      <span className="mt-3 block font-semibold text-ink">Summary</span>
+                      <span className="block">{form.summary}</span>
+                      <span className="mt-3 block font-semibold text-ink">Experience</span>
+                      <span className="block">{form.experience}</span>
+                      <span className="mt-3 block font-semibold text-ink">Skills</span>
+                      <span className="block">{form.skills}</span>
+                      <span className="mt-3 block font-semibold text-ink">Education</span>
+                      <span className="block">{form.education}</span>
+                    </ChatBubble>
+                  )}
+                </>
               )}
             </div>
 
@@ -325,10 +375,10 @@ export function CvStudio() {
                   <button
                     type="button"
                     onClick={submitAnswer}
-                    disabled={!draftAnswer.trim()}
+                    disabled={!draftAnswer.trim() || generating}
                     className="inline-flex min-h-11 items-center justify-center gap-2 rounded-lg bg-ink px-4 font-bold text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-50"
                   >
-                    Answer
+                    {generating ? "Writing" : "Answer"}
                     <Send className="h-4 w-4" aria-hidden="true" />
                   </button>
                 </div>
@@ -338,7 +388,7 @@ export function CvStudio() {
                 <button
                   type="button"
                   onClick={saveCv}
-                  disabled={saving}
+                  disabled={saving || generating}
                   className="inline-flex min-h-11 items-center justify-center gap-2 rounded-lg bg-ink px-4 font-bold text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-60"
                 >
                   <Save className="h-4 w-4" aria-hidden="true" />
@@ -351,6 +401,7 @@ export function CvStudio() {
                 >
                   Start again
                 </button>
+                {generating && <p className="text-sm font-bold text-muted">Claude is preparing the CV draft.</p>}
                 {!user && <p className="text-sm font-bold text-muted">Sign in with Google to save CVs.</p>}
               </div>
             )}
@@ -381,104 +432,4 @@ function ChatBubble({
       </div>
     </div>
   );
-}
-
-function generateCv(answerList: ChatAnswer[]): CvFormState {
-  const answerMap = Object.fromEntries(answerList.map((answer) => [answer.id, answer.answer]));
-  const targetRole = answerMap.targetRole ?? "target role";
-  const fullName = answerMap.fullName ?? "Master CV";
-  const style = chooseCvStyle(targetRole);
-  const achievements = answerMap.achievements ?? "Delivered reliable work and supported team goals.";
-  const workHistory = answerMap.workHistory ?? "Professional experience";
-  const skills = answerMap.skills ?? "Communication, organisation, teamwork";
-  const education = answerMap.education ?? "Relevant education and training";
-  const location = answerMap.location ? ` Based in ${answerMap.location}.` : "";
-
-  return {
-    title: `${fullName} Master CV`,
-    recommendedStyle: style.name,
-    summary: `${style.summaryLead} targeting ${targetRole}.${location} Brings ${style.strengthFrame} with evidence across ${summariseSkills(skills)}.`,
-    experience: `${workHistory}\n- ${style.bulletLead} ${cleanSentence(achievements)}\n- Demonstrated reliability, communication, and consistent follow-through in role-relevant responsibilities.\n- Ready to present experience clearly for ${targetRole} opportunities.`,
-    skills: formatSkills(skills, style.skillFrame),
-    education
-  };
-}
-
-function chooseCvStyle(targetRole: string) {
-  const target = targetRole.toLowerCase();
-
-  if (/(finance|bank|account|audit|law|legal|consult|analyst|corporate|insurance)/.test(target)) {
-    return {
-      name: "Professional corporate CV",
-      summaryLead: "Polished and commercially aware candidate",
-      strengthFrame: "professional judgement, accuracy, stakeholder communication, and structured problem solving",
-      skillFrame: "Core strengths",
-      bulletLead: "Built credibility through accurate, well-organised work:"
-    };
-  }
-
-  if (/(barista|coffee|hospitality|restaurant|retail|customer|shop|sales assistant)/.test(target)) {
-    return {
-      name: "Friendly customer-facing CV",
-      summaryLead: "Warm, reliable, customer-focused candidate",
-      strengthFrame: "service quality, teamwork, attention to detail, and calm communication",
-      skillFrame: "Customer-facing strengths",
-      bulletLead: "Created a positive customer experience while staying organised:"
-    };
-  }
-
-  if (/(software|developer|engineer|data|product|designer|technical|it|cyber)/.test(target)) {
-    return {
-      name: "Concise technical CV",
-      summaryLead: "Practical, skills-led candidate",
-      strengthFrame: "technical delivery, problem solving, collaboration, and measurable project impact",
-      skillFrame: "Technical and delivery skills",
-      bulletLead: "Applied practical skills to improve delivery:"
-    };
-  }
-
-  if (/(care|health|nurse|support worker|education|teacher|childcare)/.test(target)) {
-    return {
-      name: "Trust-focused care CV",
-      summaryLead: "Responsible and people-focused candidate",
-      strengthFrame: "trust, patience, communication, safeguarding awareness, and dependable support",
-      skillFrame: "Care and people skills",
-      bulletLead: "Supported people with care, consistency, and responsibility:"
-    };
-  }
-
-  return {
-    name: "Modern ATS-friendly CV",
-    summaryLead: "Reliable and adaptable candidate",
-    strengthFrame: "communication, organisation, accountability, and role-relevant practical experience",
-    skillFrame: "Relevant skills",
-    bulletLead: "Contributed to team outcomes through dependable work:"
-  };
-}
-
-function cleanSentence(value: string) {
-  const trimmed = value.trim();
-  return trimmed.endsWith(".") ? trimmed : `${trimmed}.`;
-}
-
-function summariseSkills(value: string) {
-  return value
-    .split(/,|\n/)
-    .map((skill) => skill.trim())
-    .filter(Boolean)
-    .slice(0, 4)
-    .join(", ");
-}
-
-function formatSkills(value: string, prefix: string) {
-  const skills = value
-    .split(/,|\n/)
-    .map((skill) => skill.trim())
-    .filter(Boolean);
-
-  if (!skills.length) {
-    return prefix;
-  }
-
-  return `${prefix}: ${skills.join(", ")}`;
 }
